@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Shift Zoom",
+  "version": "1.0",
+  "description": "Shift + scroll to zoom into cursor position",
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}

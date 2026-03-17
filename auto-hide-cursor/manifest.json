@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Auto Hide Cursor",
+  "version": "1.0",
+  "description": "Hides the mouse cursor after 3 seconds of inactivity",
+  "content_scripts": [{
+    "matches": ["<all_urls>"],
+    "js": ["content.js"],
+    "run_at": "document_start",
+    "all_frames": true
+  }]
+}

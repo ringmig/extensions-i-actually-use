@@ -1,0 +1,25 @@
+/* Right-click unblock: force user-select */
+* {
+  -webkit-user-select: auto !important;
+  user-select: auto !important;
+}
+
+/* Toast notification */
+.copy-img-url-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #1a1a1a;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font: 14px/1.4 -apple-system, sans-serif;
+  z-index: 2147483647;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+.copy-img-url-toast--show {
+  opacity: 1;
+}

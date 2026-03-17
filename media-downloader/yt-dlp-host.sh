@@ -1,0 +1,10 @@
+#!/bin/bash
+LOGFILE="$(dirname "$0")/bash-host.log"
+echo "[$(date)] Bash wrapper started" >> "$LOGFILE"
+echo "[$(date)] \$0=$0" >> "$LOGFILE"
+echo "[$(date)] dirname=$(dirname "$0")" >> "$LOGFILE"
+echo "[$(date)] python3=$(which python3)" >> "$LOGFILE"
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+echo "[$(date)] PATH=$PATH" >> "$LOGFILE"
+echo "[$(date)] About to exec python3" >> "$LOGFILE"
+exec /usr/bin/python3 "$(dirname "$0")/yt-dlp-host.py" "$@"

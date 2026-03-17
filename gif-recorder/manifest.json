@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "GIF Recorder",
+  "version": "1.0",
+  "description": "Right-click to select and record any area of a page as an animated GIF",
+  "permissions": ["contextMenus", "activeTab", "scripting", "downloads", "tabCapture"],
+  "host_permissions": ["<all_urls>"],
+  "action": {},
+  "background": {
+    "service_worker": "background.js"
+  }
+}
