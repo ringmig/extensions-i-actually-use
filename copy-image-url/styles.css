@@ -1,9 +1,3 @@
-/* Right-click unblock: force user-select */
-* {
-  -webkit-user-select: auto !important;
-  user-select: auto !important;
-}
-
 /* Toast notification */
 .copy-img-url-toast {
   position: fixed;

@@ -2,9 +2,11 @@
 // Runs in MAIN world so overrides affect the page's actual JS context
 
 (function () {
-  // 1. Capture-phase listener: intercept contextmenu before any page handler
-  //    runs, preventing them from calling preventDefault()
-  document.addEventListener(
+  // 1. Capture-phase listener on window — capture runs window → document → target,
+  //    so a page listener on window would otherwise fire before a document one and
+  //    preventDefault() before we ever see the event. At document_start we are the
+  //    first registration on this node, so nothing of the page's runs.
+  window.addEventListener(
     "contextmenu",
     (e) => { e.stopImmediatePropagation(); },
     { capture: true }

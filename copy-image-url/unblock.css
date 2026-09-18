@@ -1,0 +1,7 @@
+/* Right-click unblock: force user-select.
+   Separate from styles.css because this belongs to the unblocking and must stay
+   off blacklisted sites, while the toast has to work everywhere. */
+* {
+  -webkit-user-select: auto !important;
+  user-select: auto !important;
+}
