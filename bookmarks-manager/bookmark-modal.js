@@ -22,6 +22,7 @@
   let existing = null;
   let selectedId = null;
   let deleteArmed = false;
+  let scrollLock = null;
 
   // Values lifted from the manager's :root so both surfaces stay one design.
   // Inter is not loaded here — a webfont in an injected shadow root is subject
@@ -36,6 +37,7 @@
       backdrop-filter: blur(4px);
       display: flex; align-items: flex-start; justify-content: center;
       padding-top: 12vh;
+      overscroll-behavior: contain;
       font: 400 14px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       color: #F0F0F0;
       animation: fade 0.12s ease;
@@ -89,6 +91,8 @@
     .picker-list {
       position: absolute; left: 0; right: 0; top: calc(100% + 4px);
       max-height: 240px; overflow-y: auto;
+      /* Don't hand the scroll on to the page when the list bottoms out */
+      overscroll-behavior: contain;
       background: #191919; border: 1px solid #333; border-radius: 8px;
       box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
       padding: 4px; z-index: 2;
@@ -179,10 +183,28 @@
     render(existing ? existing.title : document.title);
   }
 
+  function lockScroll() {
+    const html = document.documentElement;
+    const body = document.body;
+    scrollLock = { html: html.style.overflow, body: body ? body.style.overflow : null };
+    html.style.overflow = 'hidden';
+    if (body) body.style.overflow = 'hidden';
+  }
+
+  function unlockScroll() {
+    if (!scrollLock) return;
+    document.documentElement.style.overflow = scrollLock.html;
+    if (document.body && scrollLock.body !== null) {
+      document.body.style.overflow = scrollLock.body;
+    }
+    scrollLock = null;
+  }
+
   function close() {
     if (host) host.remove();
     host = null;
     root = null;
+    unlockScroll();
   }
 
   function render(title) {
@@ -234,6 +256,7 @@
 
     root.append(style, backdrop);
     (document.body || document.documentElement).appendChild(host);
+    lockScroll();
 
     const $ = (sel) => root.getElementById(sel);
     $('title').value = title || '';
@@ -253,6 +276,19 @@
     $('save').addEventListener('click', save);
     if (existing) $('remove').addEventListener('click', remove);
     $('picker').addEventListener('click', togglePicker);
+
+    // Sites with a smooth-scroll library (Lenis, Locomotive, Framer) intercept
+    // wheel events on window and move the page themselves, so the native scroll
+    // our list relies on never happens. Scrolling it by hand cannot be stolen.
+    $('list').addEventListener('wheel', (e) => {
+      const list = $('list');
+      const step = e.deltaMode === 1 ? e.deltaY * 16
+                 : e.deltaMode === 2 ? e.deltaY * list.clientHeight
+                 : e.deltaY;
+      list.scrollTop += step;
+      e.preventDefault();
+      e.stopPropagation();
+    }, { passive: false });
 
     $('title').focus();
     $('title').select();
@@ -274,9 +310,11 @@
       chip.className = 'chip';
       chip.textContent = f.label;
       chip.setAttribute('aria-pressed', String(f.id === selectedId));
+      // A quick pick is the whole action: choose the folder and it is saved.
+      // The dropdown is for when you want to look before committing.
       chip.addEventListener('click', () => {
         selectedId = f.id;
-        renderPicker();
+        save();
       });
       row.appendChild(chip);
     }
