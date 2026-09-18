@@ -199,6 +199,82 @@ function sleep(ms) {
 // Message Handling
 // ═══════════════════════════════════
 
+// ═══════════════════════════════════
+// Custom Bookmark Modal
+// ═══════════════════════════════════
+
+// Content scripts have no chrome.bookmarks, so the modal asks for everything
+// here. Folders come back flattened with a depth so the picker can indent them.
+async function folderList() {
+  const tree = await chrome.bookmarks.getTree();
+  const out = [];
+  const walk = (nodes, depth) => {
+    for (const n of nodes) {
+      if (n.url) continue;
+      if (n.id !== '0') out.push({ id: n.id, label: n.title || 'Bokmärken', depth });
+      if (n.children) walk(n.children, n.id === '0' ? depth : depth + 1);
+    }
+  };
+  walk(tree, 0);
+  return out;
+}
+
+// Folders most recently bookmarked into. Derived from Chrome's own recent list
+// rather than a stored history, so it is useful on the first run and needs no
+// extra state — saves made through this modal land there like any other.
+function recentFolders(folders, recent, limit = 5) {
+  const byId = new Map(folders.map((f) => [f.id, f.label]));
+  const out = [];
+  for (const b of recent) {
+    if (!b.parentId || !byId.has(b.parentId)) continue;
+    if (out.some((f) => f.id === b.parentId)) continue;
+    out.push({ id: b.parentId, label: byId.get(b.parentId) });
+    if (out.length === limit) break;
+  }
+  return out;
+}
+
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === 'bm-modal-state') {
+    (async () => {
+      const [folders, hits, recent] = await Promise.all([
+        folderList(),
+        chrome.bookmarks.search({ url: msg.url }),
+        chrome.bookmarks.getRecent(60),
+      ]);
+      const hit = hits.find((h) => h.url === msg.url) || null;
+      sendResponse({
+        folders,
+        recent: recentFolders(folders, recent),
+        existing: hit && { id: hit.id, title: hit.title, url: hit.url, parentId: hit.parentId },
+      });
+    })();
+    return true;
+  }
+
+  if (msg.type === 'bm-modal-save') {
+    (async () => {
+      if (msg.id) {
+        await chrome.bookmarks.update(msg.id, { title: msg.title, url: msg.url });
+        await chrome.bookmarks.move(msg.id, { parentId: msg.parentId });
+      } else {
+        await chrome.bookmarks.create({
+          parentId: msg.parentId,
+          title: msg.title,
+          url: msg.url,
+        });
+      }
+      sendResponse({ ok: true });
+    })();
+    return true;
+  }
+
+  if (msg.type === 'bm-modal-remove') {
+    chrome.bookmarks.remove(msg.id).then(() => sendResponse({ ok: true }));
+    return true;
+  }
+});
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'capture-request') {
     // Queue bookmarks for capture

@@ -206,6 +206,9 @@ header {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 16px;
+  /* fitRows() sets --card-h so a whole number of rows fits the viewport.
+     Until it does, the card's own aspect-ratio decides the height. */
+  grid-auto-rows: var(--card-h, auto);
 }
 
 .card {
@@ -374,6 +377,66 @@ header {
 .card .item-count {
   font-size: 11px;
   color: var(--text-muted);
+}
+
+/* ── Compact View ───────────────────── */
+
+/* Same cards, denser rhythm: ten to a row at full width. Everything here is an
+   override of the grid rules above — no new colours, no second card language. */
+.grid.compact {
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 10px;
+}
+
+.grid.compact .card {
+  border-radius: var(--radius-sm);
+  padding: 14px 8px 10px;
+  gap: 6px;
+}
+
+.grid.compact .card:hover {
+  transform: translateY(-2px) scale(1.03);
+}
+
+.grid.compact .card .folder-icon,
+.grid.compact .card .favicon,
+.grid.compact .card .favicon-svg,
+.grid.compact .card .favicon-fallback {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+}
+
+.grid.compact .card .title {
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.grid.compact .card .domain,
+.grid.compact .card .item-count {
+  display: none;
+}
+
+/* Padding above is for icon cards; a thumbnail card is edge to edge, or the
+   name bar's gradient stops short of the card's own edges. */
+.grid.compact .card.has-thumb {
+  padding: 0;
+}
+
+.grid.compact .card.has-thumb .thumb-info {
+  padding: 6px 8px;
+  gap: 5px;
+  border-radius: 0 0 calc(var(--radius-sm) - 1px) calc(var(--radius-sm) - 1px);
+}
+
+.grid.compact .card.has-thumb .thumb-info .thumb-favicon {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.grid.compact .card.has-thumb .thumb-info .title {
+  font-size: 10px;
 }
 
 /* ── List View ──────────────────────── */
@@ -626,6 +689,20 @@ header {
 .list-item.drag-over {
   background: var(--accent-glow);
   box-shadow: inset 0 0 0 1px var(--accent);
+  border-radius: var(--radius-sm);
+}
+
+/* Dropping INTO a folder reads differently from dropping beside an item */
+.card.drag-into {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+  box-shadow: 0 0 0 2px var(--accent), 0 0 24px var(--accent-glow);
+  transform: scale(1.04);
+}
+
+.list-item.drag-into {
+  background: var(--accent-glow);
+  box-shadow: inset 0 0 0 2px var(--accent);
   border-radius: var(--radius-sm);
 }
 

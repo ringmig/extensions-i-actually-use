@@ -38,6 +38,7 @@
   const breadcrumbs = $('#breadcrumbs');
   const searchInput = $('#search');
   const gridBtn = $('#grid-view');
+  const compactBtn = $('#compact-view');
   const listBtn = $('#list-view');
   const contextMenu = $('#context-menu');
   const editDialog = $('#edit-dialog');
@@ -379,8 +380,8 @@
       return;
     }
 
-    if (viewMode === 'grid') {
-      content.className = 'grid';
+    if (viewMode === 'grid' || viewMode === 'compact') {
+      content.className = viewMode === 'compact' ? 'grid compact' : 'grid';
       for (const node of sorted) {
         content.appendChild(createCard(node));
       }
@@ -390,7 +391,43 @@
         content.appendChild(createListItem(node));
       }
     }
+
+    fitRows();
   }
+
+  // Cards default to 4:3, which leaves the last visible row sliced in half at the
+  // fold. Round to the nearest whole number of rows that fits and stretch them to
+  // fill, so the row count decides the aspect rather than the other way around.
+  const DENSITY = {
+    grid: { gap: 16, minCardH: 140 },
+    compact: { gap: 10, minCardH: 78 },
+  };
+
+  function fitRows() {
+    content.style.removeProperty('--card-h');
+    const density = DENSITY[viewMode];
+    if (!density) return;
+
+    const card = content.firstElementChild;
+    if (!card) return;
+
+    const { gap, minCardH } = density;
+    const top = content.getBoundingClientRect().top + window.scrollY;
+    const avail = window.innerHeight - top - gap;
+    const ideal = card.getBoundingClientRect().width * 3 / 4;
+    if (avail <= 0 || ideal <= 0) return;
+
+    const rows = Math.max(1, Math.round((avail + gap) / (ideal + gap)));
+    const h = Math.max(minCardH, (avail - (rows - 1) * gap) / rows);
+    content.style.setProperty('--card-h', h + 'px');
+  }
+
+  let fitPending = false;
+  window.addEventListener('resize', () => {
+    if (fitPending) return;
+    fitPending = true;
+    requestAnimationFrame(() => { fitPending = false; fitRows(); });
+  });
 
   // ═══════════════════════════════════
   // Navigation
@@ -622,38 +659,48 @@
     el.addEventListener('dragend', () => {
       el.classList.remove('dragging');
       dragTarget = null;
-      for (const d of document.querySelectorAll('.drag-over')) {
-        d.classList.remove('drag-over');
+      for (const d of document.querySelectorAll('.drag-over, .drag-into')) {
+        d.classList.remove('drag-over', 'drag-into');
       }
     });
+
+    const isFolder = !node.url;
 
     el.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
       if (dragTarget && dragTarget.id !== node.id) {
-        el.classList.add('drag-over');
+        el.classList.add(isFolder ? 'drag-into' : 'drag-over');
       }
     });
 
     el.addEventListener('dragleave', () => {
-      el.classList.remove('drag-over');
+      el.classList.remove('drag-over', 'drag-into');
     });
 
     el.addEventListener('drop', async (e) => {
       e.preventDefault();
-      el.classList.remove('drag-over');
+      el.classList.remove('drag-over', 'drag-into');
 
       if (!dragTarget || dragTarget.id === node.id) return;
 
-      const children = await getChildren(currentFolderId);
-      const targetIndex = children.findIndex((c) => c.id === node.id);
-
-      if (targetIndex >= 0) {
-        await chrome.bookmarks.move(dragTarget.id, {
-          parentId: currentFolderId,
-          index: targetIndex,
-        });
+      try {
+        if (isFolder) {
+          // Dropping onto a folder moves the item into it, not next to it.
+          // Chrome rejects moving a folder into its own descendant.
+          await chrome.bookmarks.move(dragTarget.id, { parentId: node.id });
+        } else {
+          const children = await getChildren(currentFolderId);
+          const targetIndex = children.findIndex((c) => c.id === node.id);
+          if (targetIndex < 0) return;
+          await chrome.bookmarks.move(dragTarget.id, {
+            parentId: currentFolderId,
+            index: targetIndex,
+          });
+        }
         navigateTo(currentFolderId);
+      } catch (err) {
+        console.warn('Move failed:', err);
       }
     });
   }
@@ -666,6 +713,7 @@
     viewMode = mode;
     localStorage.setItem('bm-view', mode);
     gridBtn.classList.toggle('active', mode === 'grid');
+    compactBtn.classList.toggle('active', mode === 'compact');
     listBtn.classList.toggle('active', mode === 'list');
 
     if (searchInput.value.trim()) {
@@ -716,6 +764,7 @@
   searchInput.addEventListener('input', (e) => handleSearch(e.target.value));
 
   gridBtn.addEventListener('click', () => setView('grid'));
+  compactBtn.addEventListener('click', () => setView('compact'));
   listBtn.addEventListener('click', () => setView('list'));
   addFolderBtn.addEventListener('click', showCreateFolderDialog);
 
@@ -793,6 +842,7 @@
   // ═══════════════════════════════════
 
   gridBtn.classList.toggle('active', viewMode === 'grid');
+  compactBtn.classList.toggle('active', viewMode === 'compact');
   listBtn.classList.toggle('active', viewMode === 'list');
 
   navigateTo('1'); // Open Bookmarks Bar by default
