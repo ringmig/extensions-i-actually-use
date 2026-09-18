@@ -74,7 +74,8 @@ async function transcribe(tab) {
     if (!result?.text) throw new Error('No transcript found');
 
     // Download as .txt
-    const filename = sanitizeFilename(result.title || 'transcript') + '.txt';
+    const filename = transcriptFilename(result.title, url);
+    claimFilename(filename);
     await chrome.downloads.download({
       url: 'data:text/plain;charset=utf-8,' + encodeURIComponent(result.text),
       filename,
@@ -272,7 +273,7 @@ function ttParseResult({ subtitleText, format, title }) {
   }
 
   if (!lines.length) throw new Error('Transcript is empty');
-  return { title: title || 'tiktok', text: lines.join('\n') };
+  return { title: title || '', text: lines.join('\n') };
 }
 
 // Method 1: Runs in content script context — extracts from hydration element
@@ -491,10 +492,57 @@ function decodeEntities(text) {
     .trim();
 }
 
+/* ---------- Filename ownership ----------
+   Any other installed extension with a downloads.onDeterminingFilename listener
+   gets to name EVERY download, ours included — that is how a transcript ends up
+   as Chrome's generic "download.txt" even though we asked for the video title.
+   Claim the name back for the one download we started; abstain for anything
+   else, which leaves it to whoever else cares.
+
+   A single slot is enough because `busy` already limits us to one transcript at
+   a time, and the data: prefix check keeps us from stealing a foreign name. */
+let claimedName = null;
+
+function claimFilename(filename) {
+  claimedName = filename;
+  // Don't leave a stale claim if the event never fires
+  setTimeout(() => { if (claimedName === filename) claimedName = null; }, 60000);
+}
+
+chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
+  // byExtensionId is the only exact answer to "did we start this?". Guessing
+  // from the URL made this extension bid on a sibling's download, and Chrome
+  // hands the loser an error instead of a file.
+  if (item.byExtensionId !== chrome.runtime.id) return;
+  if (!claimedName) return;
+  const wanted = claimedName;
+  claimedName = null;
+  suggest({ filename: wanted, conflictAction: 'uniquify' });
+});
+
+
 function sanitizeFilename(name) {
-  return name
+  return (name || '')
     .replace(/[<>:"/\\|?*\x00-\x1f]/g, '')
+    // A TikTok caption is often more hashtags than title
+    .replace(/#\S+/g, ' ')
     .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 120);
+    .slice(0, 120)
+    // A leading dot hides the file, a trailing one breaks the extension
+    .replace(/^[.\s]+|[.\s]+$/g, '');
+}
+
+// Chrome silently falls back to its own generic name ("download.txt") when the
+// filename it is handed is empty or starts with a dot — which is what a title
+// made only of emoji, CJK or hashtags sanitises down to. Hence the backstop.
+function transcriptFilename(title, url) {
+  return (sanitizeFilename(title) || sourceSlug(url)) + '.txt';
+}
+
+function sourceSlug(url) {
+  const site = url.hostname.replace(/^www\./, '').split('.')[0];
+  const id = url.searchParams.get('v')
+    || url.pathname.split('/').filter(Boolean).pop()
+    || '';
+  return sanitizeFilename(id ? site + '_' + id : site) || 'transcript';
 }
