@@ -14,3 +14,7 @@ Cached Theme.pak
 
 # Native host debug log, written next to the extension
 ytdlp-host.log
+
+# Python bytecode; Chrome refuses to load an extension containing it
+__pycache__/
+*.pyc
