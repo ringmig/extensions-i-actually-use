@@ -8,3 +8,6 @@ build/
 # macOS
 .DS_Store
 ._*
+
+# Chrome writes this into the extension folder; it is cache, not source
+Cached Theme.pak
