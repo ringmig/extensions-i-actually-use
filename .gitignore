@@ -11,3 +11,6 @@ build/
 
 # Chrome writes this into the extension folder; it is cache, not source
 Cached Theme.pak
+
+# Native host debug log, written next to the extension
+ytdlp-host.log

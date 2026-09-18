@@ -3,6 +3,13 @@
    Uses btch-downloader (via offscreen document) to grab media
    from supported social platforms, then saves to Downloads.
    ============================================================ */
+// Flip on to trace the fallback chain in the service worker console. Off by
+// default: the download-state trace fires on every bytesReceived delta.
+const DEBUG = false;
+const dbg = (...args) => { if (DEBUG) console.log(...args); };
+
+
+const DOWNLOAD_SUBFOLDER = 'chrome-downloads';
 
 const SUPPORTED_DOMAINS = [
   'instagram.com', 'tiktok.com', 'youtube.com', 'youtu.be',
@@ -97,6 +104,54 @@ function toast(id, text, status) {
   chrome.tabs.sendMessage(activeTabId, { type: 'toast', id, text, status }).catch(() => {});
 }
 
+/* ---------- Inline SVG Download (data URL) ---------- */
+
+function downloadInlineSvg(svgInfo, tab) {
+  let host = 'svg';
+  try {
+    host = new URL(tab?.url || '').hostname.replace(/^www\./, '').split('.')[0] || 'svg';
+  } catch {}
+
+  const idPart = svgInfo.id ? sanitizePath(svgInfo.id).replace(/\s+/g, '_') : '';
+  const baseName = idPart || 'logo';
+  const filename = `${host}_${baseName}.svg`;
+
+  const id = crypto.randomUUID();
+  addHistory({ id, url: tab?.url || '', filename, status: 'downloading' });
+  toast(id, 'Downloading ' + filename, 'downloading');
+
+  // Service workers can't use URL.createObjectURL on Blobs in MV3,
+  // so use a data URL. encodeURIComponent handles any character safely.
+  const dataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgInfo.svg);
+  downloadFile(dataUrl, filename, id);
+}
+
+/* ---------- TikTok Image Reel Scraping (DOM-based fallback) ---------- */
+
+async function scrapeTikTokCarousel(tabId, sourceUrl) {
+  try {
+    const response = await chrome.tabs.sendMessage(tabId, { type: 'scrape-tiktok-images' });
+    const images = response?.images;
+    if (!images || images.length === 0) return [];
+
+    // Build download list from scraped URLs
+    let title = 'tiktok';
+    try {
+      const slug = new URL(sourceUrl).pathname.replace(/^\//, '').replace(/\//g, '_').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60);
+      if (slug) title = slug;
+    } catch {}
+    const folder = sanitizePath(title) || 'tiktok';
+
+    return images.map((url, i) => {
+      const ext = guessExtension(url, 'jpeg');
+      const name = `${folder}/${folder}_${i + 1}.${ext}`;
+      return { url, filename: name };
+    });
+  } catch {
+    return [];
+  }
+}
+
 /* ---------- yt-dlp Domains (prefer native yt-dlp over btch-downloader) ---------- */
 
 const YTDLP_DOMAINS = [
@@ -124,9 +179,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     reader.onloadend = () => {
       const host = new URL(tab.url).hostname.replace(/^www\./, '').split('.')[0];
       const snippet = text.slice(0, 30).replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_') || 'text';
-      const filename = `${host}_${snippet}.txt`;
       // No toast — text downloads are instant
-      chrome.downloads.download({ url: reader.result, filename, saveAs: false });
+      downloadFile(reader.result, `${host}_${snippet}.txt`);
     };
     reader.readAsDataURL(blob);
     return;
@@ -136,9 +190,65 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
   activeTabId = tab?.id || null;
 
-  let url = info.linkUrl || info.srcUrl || info.pageUrl;
+  dbg('[mdl] download-media clicked', {
+    pageUrl: info.pageUrl,
+    linkUrl: info.linkUrl,
+    srcUrl: info.srcUrl,
+    mediaType: info.mediaType,
+    tabUrl: tab?.url
+  });
+
+  // Inline SVG check — must run BEFORE URL extraction.
+  // For inline <svg> elements wrapped in <a>, info.linkUrl points at the
+  // anchor's href (often the page URL), not the SVG. Ask the content script
+  // what was actually right-clicked.
+  //
+  // Skipped when Chrome already pointed at real media (srcUrl/mediaType) or
+  // when we're on a media platform — otherwise a UI icon (TikTok's volume
+  // control, a play button) beats the actual photo/video the user aimed at.
+  const skipSvgProbe = !!info.srcUrl || !!info.mediaType ||
+    isSupportedUrl(tab?.url || '') || isYtdlpDomain(tab?.url || '');
+  if (activeTabId && !skipSvgProbe) {
+    try {
+      const svgInfo = await chrome.tabs.sendMessage(activeTabId, { type: 'get-right-clicked-svg' });
+      if (svgInfo && svgInfo.svg) {
+        downloadInlineSvg(svgInfo, tab);
+        return;
+      }
+    } catch {
+      // Content script not loaded (chrome:// page, etc.) — fall through
+    }
+  }
+
+  // Instagram-specific: Chrome's context-menu info is unreliable on Instagram —
+  // feed images often expose only the page URL (https://www.instagram.com/),
+  // which makes btch-downloader and yt-dlp both fail. Ask the content script
+  // to walk the DOM from the right-clicked element to the surrounding post
+  // permalink (/p/, /reel/, /tv/) and use that instead.
+  let resolvedUrl = null;
+  if (activeTabId) {
+    try {
+      const tabHost = new URL(tab?.url || '').hostname.replace(/^www\./, '');
+      const onInstagram = tabHost === 'instagram.com' || tabHost.endsWith('.instagram.com');
+      if (onInstagram) {
+        const igResult = await chrome.tabs.sendMessage(activeTabId, { type: 'get-instagram-post-url' });
+        dbg('[mdl] instagram post-url lookup →', igResult);
+        if (igResult?.url) resolvedUrl = igResult.url;
+      }
+    } catch (e) {
+      dbg('[mdl] instagram post-url lookup failed:', e?.message || e);
+    }
+  }
+
+  let url = resolvedUrl || info.linkUrl || info.srcUrl || info.pageUrl;
+  dbg('[mdl] resolved url →', url, resolvedUrl ? '(from DOM walk)' : '(from context info)');
   // blob: URLs can't be downloaded — use the page URL instead (e.g. YouTube video player)
   if (url && url.startsWith('blob:')) url = info.pageUrl;
+  // On a TikTok post page, a right-clicked carousel slide resolves to a single
+  // CDN image. Use the post URL so the whole carousel gets picked up instead.
+  if (isTikTokUrl(tab?.url || '') && !isTikTokUrl(url) && /\/(photo|video)\//.test(tab.url)) {
+    url = tab.url;
+  }
   if (!url) {
     const id = crypto.randomUUID();
     addHistory({ id, url: '(none)', filename: '', status: 'error', error: 'No URL detected' });
@@ -176,9 +286,19 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   try {
     await ensureOffscreenDocument();
     const response = await sendToOffscreen({ action: 'download', url });
+    dbg('[mdl] btch-downloader response →', response);
 
     if (!response || response.error) {
-      // btch-downloader failed — try yt-dlp
+      // btch-downloader failed — try TikTok DOM scraping, then yt-dlp
+      if (isTikTokUrl(url) && activeTabId) {
+        const scraped = await scrapeTikTokCarousel(activeTabId, url);
+        if (scraped.length > 0) {
+          toast(jobId, '', 'dismiss');
+          history = history.filter(h => h.id !== jobId);
+          startBatchDownload(scraped);
+          return;
+        }
+      }
       toast(jobId, '', 'dismiss');
       history = history.filter(h => h.id !== jobId);
       downloadWithYtdlp(url);
@@ -186,29 +306,39 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     }
 
     const downloadUrls = extractDownloadUrls(response.data, url);
+    dbg('[mdl] extracted download URLs →', downloadUrls.length, downloadUrls);
     if (downloadUrls.length === 0) {
-      // No media found — try yt-dlp
+      // No media from btch-downloader — try TikTok DOM scraping, then yt-dlp
+      if (isTikTokUrl(url) && activeTabId) {
+        const scraped = await scrapeTikTokCarousel(activeTabId, url);
+        if (scraped.length > 0) {
+          toast(jobId, '', 'dismiss');
+          history = history.filter(h => h.id !== jobId);
+          startBatchDownload(scraped);
+          return;
+        }
+      }
       toast(jobId, '', 'dismiss');
       history = history.filter(h => h.id !== jobId);
       downloadWithYtdlp(url);
       return;
     }
 
-    // Dismiss the processing toast, show downloading
+    // Dismiss the processing toast, start downloads
     toast(jobId, '', 'dismiss');
     history = history.filter(h => h.id !== jobId);
-
-    const count = downloadUrls.length;
-    const batchId = crypto.randomUUID();
-    toast(batchId, `Downloading ${count} file${count > 1 ? 's' : ''}...`, 'downloading');
-
-    for (const dl of downloadUrls) {
-      const dlId = crypto.randomUUID();
-      addHistory({ id: dlId, url: dl.url, filename: dl.filename, status: 'downloading', _batchId: batchId, _batchTotal: count });
-      downloadFile(dl.url, dl.filename, dlId);
-    }
+    startBatchDownload(downloadUrls);
   } catch (err) {
-    // btch-downloader threw — try yt-dlp
+    // btch-downloader threw — try TikTok DOM scraping, then yt-dlp
+    if (isTikTokUrl(url) && activeTabId) {
+      const scraped = await scrapeTikTokCarousel(activeTabId, url);
+      if (scraped.length > 0) {
+        toast(jobId, '', 'dismiss');
+        history = history.filter(h => h.id !== jobId);
+        startBatchDownload(scraped);
+        return;
+      }
+    }
     toast(jobId, '', 'dismiss');
     history = history.filter(h => h.id !== jobId);
     downloadWithYtdlp(url);
@@ -222,6 +352,7 @@ const ytdlpPorts = new Map(); // jobId -> native port
 const ytdlpLastPct = new Map(); // jobId -> last percentage number
 
 function downloadWithYtdlp(url) {
+  dbg('[mdl] yt-dlp invoked with url →', url);
   // Block if a yt-dlp download is already running
   if (ytdlpPorts.size > 0) {
     const warnId = crypto.randomUUID();
@@ -259,6 +390,7 @@ function downloadWithYtdlp(url) {
       ytdlpPorts.delete(jobId);
       ytdlpLastPct.delete(jobId);
     } else if (msg.status === 'error') {
+      console.error('[mdl] yt-dlp error for', url, '→', msg.error);
       updateHistory(jobId, { status: 'error', error: msg.error });
       logFailure({ url, filename: '', error: msg.error, method: 'ytdlp' });
       toast(jobId, msg.error, 'error');
@@ -304,11 +436,24 @@ function markDone(historyId) {
 function markFailed(historyId, err) {
   updateHistory(historyId, { status: 'error', error: err });
   const item = history.find(h => h.id === historyId);
+  console.error('[mdl] download failed:', err, '— file:', item?.filename, 'url:', item?.url);
   logFailure({ url: item?.url, filename: item?.filename, error: err, method: 'download' });
   if (item?._batchId) {
     checkBatch(item._batchId);
   } else {
     toast(historyId, err, 'error');
+  }
+}
+
+function startBatchDownload(downloadUrls) {
+  const count = downloadUrls.length;
+  const batchId = crypto.randomUUID();
+  toast(batchId, `Downloading ${count} file${count > 1 ? 's' : ''}...`, 'downloading');
+
+  for (const dl of downloadUrls) {
+    const dlId = crypto.randomUUID();
+    addHistory({ id: dlId, url: dl.url, filename: dl.filename, status: 'downloading', _batchId: batchId, _batchTotal: count });
+    downloadFile(dl.url, dl.filename, dlId);
   }
 }
 
@@ -328,6 +473,12 @@ function checkBatch(batchId) {
 chrome.downloads.onChanged.addListener((delta) => {
   const historyId = downloadIdMap.get(delta.id);
   if (!historyId) return;
+  dbg('[mdl] download state change', delta.id, {
+    state: delta.state?.current,
+    error: delta.error?.current,
+    paused: delta.paused?.current,
+    bytes: delta.bytesReceived?.current
+  });
 
   if (delta.state) {
     if (delta.state.current === 'complete') {
@@ -421,10 +572,40 @@ function sendToOffscreen(message) {
 
 /* ---------- URL Helpers ---------- */
 
+// btch-downloader routes Instagram media through d.rapidcdn.app, which
+// frequently returns SERVER_FAILED. The proxy URL contains a JWT whose
+// payload has the real Instagram CDN URL — decode it and use that directly.
+function unwrapRapidCdnUrl(url) {
+  try {
+    const u = new URL(url);
+    if (u.hostname !== 'd.rapidcdn.app') return null;
+    const token = u.searchParams.get('token');
+    if (!token) return null;
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64 + '=='.slice(0, (4 - b64.length % 4) % 4);
+    const payload = JSON.parse(atob(padded));
+    return payload?.url || null;
+  } catch (e) {
+    console.warn('[mdl] rapidcdn JWT decode failed:', e?.message);
+    return null;
+  }
+}
+
 function isSupportedUrl(url) {
   try {
     const hostname = new URL(url).hostname.replace(/^www\./, '');
     return SUPPORTED_DOMAINS.some(d => hostname === d || hostname.endsWith('.' + d));
+  } catch {
+    return false;
+  }
+}
+
+function isTikTokUrl(url) {
+  try {
+    const h = new URL(url).hostname.replace(/^www\./, '');
+    return h === 'tiktok.com' || h.endsWith('.tiktok.com');
   } catch {
     return false;
   }
@@ -442,15 +623,17 @@ function isDirectMediaUrl(url) {
 /* ---------- Extract Download URLs from Response ---------- */
 
 function makeFolderName(data, sourceUrl) {
+  // sanitizePath drops everything non-ASCII, so an emoji/CJK-only caption
+  // yields '' — fall through to the URL instead of returning an empty folder
+  // (which made every file land loose in chrome-downloads/).
   const title = data?.title || data?.title_audio || data?.result?.title;
-  if (title) {
-    return sanitizePath(title);
-  }
+  const fromTitle = title ? sanitizePath(title).replace(/\s+/g, '_') : '';
+  if (fromTitle) return fromTitle;
   try {
     const u = new URL(sourceUrl);
     const host = u.hostname.replace(/^www\./, '').split('.')[0];
     const slug = u.pathname.replace(/^\//, '').replace(/\//g, '_').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60);
-    return slug ? `${host}_${slug}` : host;
+    return slug ? `${host}_${slug}` : (host || 'download');
   } catch {
     return 'download';
   }
@@ -478,7 +661,7 @@ function extractDownloadUrls(data, sourceUrl) {
     results.push({ url, filename: `${folder}/${filename}` });
   }
 
-  // TikTok: video[] and audio[]
+  // TikTok: video[] (may contain images for carousels), images[], and audio[]
   if (data.video) {
     const videos = Array.isArray(data.video) ? data.video : [data.video];
     videos.forEach((v, i) => {
@@ -487,7 +670,19 @@ function extractDownloadUrls(data, sourceUrl) {
       add(url, buildFilename(data.title || 'tiktok', ext, i));
     });
   }
-  if (data.audio && results.length === 0) {
+  // TikTok image reels sometimes return images in a separate field
+  if (data.images) {
+    const images = Array.isArray(data.images) ? data.images : [data.images];
+    images.forEach((img, i) => {
+      const url = typeof img === 'string' ? img : (img?.url || img?.originCover || img?.dynamic);
+      const ext = guessExtension(url, 'jpeg');
+      add(url, buildFilename(data.title || 'tiktok', ext, results.length));
+    });
+  }
+  // Audio only when no images/videos were found AND response has no image data
+  // Skip audio for TikTok — image reels sometimes only return the music track
+  // when btch-downloader fails to extract images; let it fall through to yt-dlp instead
+  if (data.audio && results.length === 0 && !data.images && !isTikTokUrl(sourceUrl)) {
     const audios = Array.isArray(data.audio) ? data.audio : [data.audio];
     audios.forEach((a, i) => {
       const url = typeof a === 'string' ? a : a?.url;
@@ -613,17 +808,62 @@ function guessExtension(url, fallback) {
 
 /* ---------- Download ---------- */
 
+// Strip path components that Chrome rejects or that silently flatten the
+// download: empty segments, and leading/trailing dots or spaces.
+function safeRelPath(path) {
+  return path
+    .split('/')
+    .map(seg => seg.replace(/^[.\s]+|[.\s]+$/g, ''))
+    .filter(Boolean)
+    .join('/');
+}
+
+/* ---------- Filename ownership ----------
+   Any other extension with a downloads.onDeterminingFilename listener gets to
+   name EVERY download, ours included — "Snag - Save Image As" did exactly that,
+   which is why files landed loose in ~/Downloads under their raw CDN names
+   instead of chrome-downloads/<post>/. Claim the name back for our own
+   downloads; anything we didn't start is left to whoever else cares. */
+const claimedNames = new Map(); // url -> intended relative path
+
+function claimFilename(url, filename) {
+  claimedNames.set(url, filename);
+  // Don't leak if the event never fires (download rejected, user cancelled)
+  setTimeout(() => claimedNames.delete(url), 60000);
+}
+
+chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
+  const wanted = claimedNames.get(item.url) || claimedNames.get(item.finalUrl);
+  if (!wanted) return; // not ours
+  claimedNames.delete(item.url);
+  claimedNames.delete(item.finalUrl);
+  dbg('[mdl] claiming filename →', wanted);
+  suggest({ filename: wanted, conflictAction: 'uniquify' });
+});
+
 function downloadFile(url, filename, historyId) {
+  const unwrapped = unwrapRapidCdnUrl(url);
+  if (unwrapped) {
+    dbg('[mdl] unwrapped rapidcdn JWT → using direct CDN url');
+    url = unwrapped;
+  }
   const options = { url };
-  if (filename) options.filename = filename;
+  if (filename) {
+    options.filename = safeRelPath(`${DOWNLOAD_SUBFOLDER}/${filename}`);
+    claimFilename(url, options.filename);
+  }
+  dbg('[mdl] chrome.downloads.download →', options.filename, url.slice(0, 100));
   chrome.downloads.download(options, (downloadId) => {
     if (chrome.runtime.lastError) {
+      console.warn('[mdl] download API rejected:', chrome.runtime.lastError.message, '— retrying with safe filename');
       // Retry with safe fallback filename
       if (filename) {
         const ext = filename.match(/\.(\w+)$/)?.[1] || 'bin';
-        const safeName = `download_${Date.now()}.${ext}`;
+        const safeName = `${DOWNLOAD_SUBFOLDER}/download_${Date.now()}.${ext}`;
+        claimFilename(url, safeName);
         chrome.downloads.download({ url, filename: safeName }, (retryId) => {
           if (chrome.runtime.lastError) {
+            console.error('[mdl] download retry failed:', chrome.runtime.lastError.message, 'url:', url);
             if (historyId) markFailed(historyId, chrome.runtime.lastError.message);
           } else if (retryId && historyId) {
             downloadIdMap.set(retryId, historyId);

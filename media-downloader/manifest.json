@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Media Downloader",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Right-click to download media from Instagram, TikTok, YouTube, Twitter/X, Facebook, and more.",
   "permissions": [
     "contextMenus",
@@ -21,11 +21,18 @@
   "background": {
     "service_worker": "background.js"
   },
-  "content_scripts": [{
-    "matches": ["<all_urls>"],
-    "js": ["toast.js"],
-    "run_at": "document_idle"
-  }],
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "toast.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

@@ -12,6 +12,10 @@ import os
 import re
 import shutil
 
+# Every line of yt-dlp output to the log file is useful while debugging and
+# noise otherwise — the file has no rotation.
+DEBUG = False
+
 # Chrome launches native hosts with minimal PATH — add common locations
 os.environ['PATH'] = os.environ.get('PATH', '') + ':/opt/homebrew/bin:/usr/local/bin:/usr/bin'
 
@@ -35,9 +39,11 @@ def send_message(msg):
 
 
 def get_downloads_dir():
-    """Get the default Downloads directory."""
+    """Get the default Downloads directory (chrome-downloads subfolder)."""
     home = os.path.expanduser('~')
-    return os.path.join(home, 'Downloads')
+    dl_dir = os.path.join(home, 'Downloads', 'chrome-downloads')
+    os.makedirs(dl_dir, exist_ok=True)
+    return dl_dir
 
 
 def run_ytdlp(url, download_dir):
@@ -49,9 +55,16 @@ def run_ytdlp(url, download_dir):
         '--no-playlist',
         '--newline',
         '--progress',
+        # Format sort: prefer mp4 video + m4a audio, then resolution, then bitrate.
+        # Helps Instagram (and others) pick a working stream — see yt-dlp #11151.
+        '-S', 'proto,ext:mp4:m4a,res,br',
         '-o', output_template,
-        url
     ]
+    # Instagram CDN URLs require the user's session cookies — read them from
+    # the Chrome profile so logged-in posts work the same way they do in the tab.
+    if 'instagram.com' in url:
+        cmd += ['--cookies-from-browser', 'chrome']
+    cmd.append(url)
 
     try:
         proc = subprocess.Popen(
@@ -64,11 +77,20 @@ def run_ytdlp(url, download_dir):
 
         filename = None
         last_pct = ''
+        recent_lines = []  # ring buffer of last N output lines for error context
 
         for line in proc.stdout:
             line = line.strip()
             if not line:
                 continue
+
+            # Keep last 20 lines for error reporting
+            recent_lines.append(line)
+            if len(recent_lines) > 20:
+                recent_lines.pop(0)
+
+            if DEBUG:
+                log(f'yt-dlp: {line}')
 
             # Extract progress percentage
             pct_match = re.search(r'(\d+\.?\d*)%', line)
@@ -99,7 +121,15 @@ def run_ytdlp(url, download_dir):
             display_name = os.path.basename(filename) if filename else 'download complete'
             send_message({'status': 'done', 'filename': display_name})
         else:
-            send_message({'status': 'error', 'error': 'Download Failed'})
+            # Surface the actual error: prefer the last ERROR line, fall back to last line.
+            err_line = next(
+                (l for l in reversed(recent_lines) if 'ERROR' in l or 'Unsupported URL' in l),
+                recent_lines[-1] if recent_lines else 'Download Failed'
+            )
+            # Trim yt-dlp's "ERROR: " prefix and shorten for toast display
+            err_line = re.sub(r'^ERROR:\s*', '', err_line)[:200]
+            log(f'yt-dlp exited with {proc.returncode}: {err_line}')
+            send_message({'status': 'error', 'error': err_line or 'Download Failed'})
 
     except FileNotFoundError:
         send_message({'status': 'error', 'error': 'Downloader not installed'})

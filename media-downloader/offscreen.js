@@ -71,7 +71,7 @@ async function processDownload(url) {
   }
 
   // Check for empty results
-  const hasData = result?.video?.length || result?.audio?.length ||
+  const hasData = result?.video?.length || result?.images?.length || result?.audio?.length ||
     result?.mp4?.length || result?.mp3?.length ||
     result?.url || result?.HD || result?.Normal_video ||
     result?.originalVideoUrl || result?.videoUrl || result?.no_watermark ||
