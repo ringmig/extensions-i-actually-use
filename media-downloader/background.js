@@ -278,6 +278,16 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     return;
   }
 
+  // A TikTok video goes straight to yt-dlp too. btch-downloader answers with a
+  // dl.tiktokio.com proxy URL whose token the browser cannot fetch
+  // (NETWORK_FAILED), and the carousel fallback that then kicks in has no
+  // carousel to find, so its size-based pass collects the feed's thumbnails
+  // instead. btch-downloader earns its round trip on photo posts only.
+  if (isTikTokVideoPost(url)) {
+    downloadWithYtdlp(url);
+    return;
+  }
+
   // Other supported platforms — try btch-downloader, fall back to yt-dlp
   const jobId = crypto.randomUUID();
   addHistory({ id: jobId, url, filename: '', status: 'processing', error: null });
@@ -290,7 +300,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
     if (!response || response.error) {
       // btch-downloader failed — try TikTok DOM scraping, then yt-dlp
-      if (isTikTokUrl(url) && activeTabId) {
+      if (isTikTokUrl(url) && !isTikTokVideoPost(url) && activeTabId) {
         const scraped = await scrapeTikTokCarousel(activeTabId, url);
         if (scraped.length > 0) {
           toast(jobId, '', 'dismiss');
@@ -309,7 +319,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     dbg('[mdl] extracted download URLs →', downloadUrls.length, downloadUrls);
     if (downloadUrls.length === 0) {
       // No media from btch-downloader — try TikTok DOM scraping, then yt-dlp
-      if (isTikTokUrl(url) && activeTabId) {
+      if (isTikTokUrl(url) && !isTikTokVideoPost(url) && activeTabId) {
         const scraped = await scrapeTikTokCarousel(activeTabId, url);
         if (scraped.length > 0) {
           toast(jobId, '', 'dismiss');
@@ -330,7 +340,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     startBatchDownload(downloadUrls);
   } catch (err) {
     // btch-downloader threw — try TikTok DOM scraping, then yt-dlp
-    if (isTikTokUrl(url) && activeTabId) {
+    if (isTikTokUrl(url) && !isTikTokVideoPost(url) && activeTabId) {
       const scraped = await scrapeTikTokCarousel(activeTabId, url);
       if (scraped.length > 0) {
         toast(jobId, '', 'dismiss');
@@ -602,6 +612,13 @@ function isSupportedUrl(url) {
   }
 }
 
+// A short vm.tiktok.com link says nothing about its contents, so only an
+// explicit /video/ counts as "not a carousel" — everything else keeps the
+// btch-downloader and scrape path.
+function isTikTokVideoPost(url) {
+  return isTikTokUrl(url) && /\/video\//.test(url);
+}
+
 function isTikTokUrl(url) {
   try {
     const h = new URL(url).hostname.replace(/^www\./, '');
@@ -833,8 +850,11 @@ function claimFilename(url, filename) {
 }
 
 chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
+  // Exact test first: anything another extension started is none of our
+  // business, whatever its URL happens to look like.
+  if (item.byExtensionId !== chrome.runtime.id) return;
   const wanted = claimedNames.get(item.url) || claimedNames.get(item.finalUrl);
-  if (!wanted) return; // not ours
+  if (!wanted) return; // ours, but unnamed — let Chrome decide
   claimedNames.delete(item.url);
   claimedNames.delete(item.finalUrl);
   dbg('[mdl] claiming filename →', wanted);
