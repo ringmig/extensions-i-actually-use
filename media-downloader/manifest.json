@@ -1,7 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Media Downloader",
-  "version": "1.4.0",
+  "version": "1.5.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAm544rzqSMGPNT5f393J+7O1X2DglVjWiS9ILB23NnbdiCy7GM3BaaKFMtzutbWvL4wrC+88ayO0s0BY0qtvjC5eyv5kjRFIbUUz0syr36+WE2mtiHutDwrDPtbN0yQ7Jk7kA/e0L7WhEb/CihdMR/lsxiGEg756/OYzp2XuE47sudN47IIHIZbYPYd1w4xazX5bDTNDnI5G1N+8ln1490gFQ1iJMzxyNjXPckaepNeNWFB68IDRw+BUIT8yMyyhk6mMoXiBn4IyiJgptP/fZa/sHT0vpGnsK9f/XZ/Jo1TrKKP9hbKz03TiLjqXwWS01ZUD4ksSXu4m+pUu25dyk3wIDAQAB",
   "description": "Right-click to download media from Instagram, TikTok, YouTube, Twitter/X, Facebook, and more.",
   "permissions": [
     "contextMenus",

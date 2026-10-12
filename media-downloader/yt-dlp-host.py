@@ -16,8 +16,11 @@ import shutil
 # noise otherwise — the file has no rotation.
 DEBUG = False
 
-# Chrome launches native hosts with minimal PATH — add common locations
-os.environ['PATH'] = os.environ.get('PATH', '') + ':/opt/homebrew/bin:/usr/local/bin:/usr/bin'
+# setup.command puts its own yt-dlp and ffmpeg in bin/ next to this file, so
+# those win. Chrome launches native hosts with a minimal PATH — the common
+# locations stay as a fallback for an install without bin/.
+BIN_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bin')
+os.environ['PATH'] = BIN_DIR + ':' + os.environ.get('PATH', '') + ':/opt/homebrew/bin:/usr/local/bin:/usr/bin'
 
 
 def read_message():
@@ -46,7 +49,17 @@ def get_downloads_dir():
     return dl_dir
 
 
-def run_ytdlp(url, download_dir):
+def self_update():
+    """True if yt-dlp replaced itself with a newer release."""
+    try:
+        out = subprocess.run(['yt-dlp', '-U'], capture_output=True, text=True, timeout=180)
+    except Exception:
+        return False
+    log(f'yt-dlp -U: {(out.stdout + out.stderr).strip()[-300:]}')
+    return 'Updated yt-dlp to' in out.stdout
+
+
+def run_ytdlp(url, download_dir, retried=False):
     """Run yt-dlp and stream progress back to the extension."""
     output_template = os.path.join(download_dir, '%(title)s.%(ext)s')
 
@@ -120,6 +133,11 @@ def run_ytdlp(url, download_dir):
         if proc.returncode == 0:
             display_name = os.path.basename(filename) if filename else 'download complete'
             send_message({'status': 'done', 'filename': display_name})
+        elif not retried and self_update():
+            # Sites break a stale yt-dlp regularly (YouTube: 403 mid-download).
+            # ponytail: every failure costs one update check; gate on the
+            # error text if that wait starts to be felt.
+            run_ytdlp(url, download_dir, retried=True)
         else:
             # Surface the actual error: prefer the last ERROR line, fall back to last line.
             err_line = next(
@@ -128,10 +146,6 @@ def run_ytdlp(url, download_dir):
             )
             # Trim yt-dlp's "ERROR: " prefix and shorten for toast display
             err_line = re.sub(r'^ERROR:\s*', '', err_line)[:200]
-            # YouTube answers a stale yt-dlp with 403 mid-download; the raw
-            # error says nothing about the cure.
-            if 'HTTP Error 403' in err_line:
-                err_line = 'yt-dlp is probably outdated: run update-yt-dlp.command'
             log(f'yt-dlp exited with {proc.returncode}: {err_line}')
             send_message({'status': 'error', 'error': err_line or 'Download Failed'})
 
