@@ -11,12 +11,9 @@ EXT_ID="jmhedjechefldglimlldkckbgakhlnif"
 BIN_DIR="$HOME/.local/share/media-downloader/bin"
 mkdir -p "$BIN_DIR"
 
-if [ ! -x "$BIN_DIR/yt-dlp" ]; then
-  echo "Fetching yt-dlp..."
-  curl -fL --progress-bar -o "$BIN_DIR/yt-dlp" \
-    https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos
-  chmod +x "$BIN_DIR/yt-dlp"
-fi
+echo "Checking yt-dlp..."
+./fetch-yt-dlp.sh "$BIN_DIR" || true
+"$BIN_DIR/yt-dlp" --version
 
 if [ ! -x "$BIN_DIR/ffmpeg" ]; then
   echo "Fetching ffmpeg..."

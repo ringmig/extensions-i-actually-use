@@ -23,6 +23,7 @@ HOST_DIR="$HOME/.local/share/media-downloader"
 mkdir -p "$HOST_DIR"
 cp "$SCRIPT_DIR/yt-dlp-host.py" "$HOST_DIR/"
 cp "$SCRIPT_DIR/yt-dlp-host.sh" "$HOST_DIR/" 2>/dev/null || true
+cp "$SCRIPT_DIR/fetch-yt-dlp.sh" "$HOST_DIR/" 2>/dev/null || true
 chmod +x "$HOST_DIR/yt-dlp-host.py" "$HOST_DIR/yt-dlp-host.sh" 2>/dev/null
 HOST_SCRIPT="$HOST_DIR/yt-dlp-host.sh"
 

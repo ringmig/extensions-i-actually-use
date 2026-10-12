@@ -50,13 +50,14 @@ def get_downloads_dir():
 
 
 def self_update():
-    """True if yt-dlp replaced itself with a newer release."""
+    """True if a newer yt-dlp release was installed into bin/."""
+    script = os.path.join(os.path.dirname(BIN_DIR), 'fetch-yt-dlp.sh')
     try:
-        out = subprocess.run(['yt-dlp', '-U'], capture_output=True, text=True, timeout=180)
+        updated = subprocess.run([script, BIN_DIR], timeout=300).returncode == 0
     except Exception:
         return False
-    log(f'yt-dlp -U: {(out.stdout + out.stderr).strip()[-300:]}')
-    return 'Updated yt-dlp to' in out.stdout
+    log(f'yt-dlp update: {"installed" if updated else "nothing newer"}')
+    return updated
 
 
 def run_ytdlp(url, download_dir, retried=False):
