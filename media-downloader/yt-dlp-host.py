@@ -128,6 +128,10 @@ def run_ytdlp(url, download_dir):
             )
             # Trim yt-dlp's "ERROR: " prefix and shorten for toast display
             err_line = re.sub(r'^ERROR:\s*', '', err_line)[:200]
+            # YouTube answers a stale yt-dlp with 403 mid-download; the raw
+            # error says nothing about the cure.
+            if 'HTTP Error 403' in err_line:
+                err_line = 'yt-dlp is probably outdated: run update-yt-dlp.command'
             log(f'yt-dlp exited with {proc.returncode}: {err_line}')
             send_message({'status': 'error', 'error': err_line or 'Download Failed'})
 
