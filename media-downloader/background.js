@@ -226,18 +226,51 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   // to walk the DOM from the right-clicked element to the surrounding post
   // permalink (/p/, /reel/, /tv/) and use that instead.
   let resolvedUrl = null;
-  if (activeTabId) {
+  let gridImage = null;
+  const onInstagram = isInstagramUrl(tab?.url || '');
+  if (activeTabId && onInstagram) {
     try {
-      const tabHost = new URL(tab?.url || '').hostname.replace(/^www\./, '');
-      const onInstagram = tabHost === 'instagram.com' || tabHost.endsWith('.instagram.com');
-      if (onInstagram) {
-        const igResult = await chrome.tabs.sendMessage(activeTabId, { type: 'get-instagram-post-url' });
-        dbg('[mdl] instagram post-url lookup →', igResult);
-        if (igResult?.url) resolvedUrl = igResult.url;
-      }
+      const igResult = await chrome.tabs.sendMessage(activeTabId, { type: 'get-instagram-post-url' });
+      dbg('[mdl] instagram post-url lookup →', igResult);
+      if (igResult?.url) resolvedUrl = igResult.url;
+      if (igResult?.image) gridImage = igResult.image;
     } catch (e) {
       dbg('[mdl] instagram post-url lookup failed:', e?.message || e);
     }
+  }
+  // The content script can be missing (tab opened before the extension
+  // reloaded) or the DOM can have moved again. Chrome's own srcUrl still
+  // points at the CDN file whenever the right-click landed on the image.
+  if (onInstagram && !gridImage && isInstagramCdnImage(info.srcUrl)) {
+    dbg('[mdl] instagram: falling back to info.srcUrl');
+    gridImage = info.srcUrl;
+  }
+
+  // A photo tile in a profile grid or the /tagged/ tab: the image on screen is
+  // what the user aimed at, and it is already a CDN file we can fetch. Neither
+  // btch-downloader nor yt-dlp can improve on it, and both fail outright when
+  // the fallback chain ends up handing them the profile page URL.
+  if (gridImage) {
+    const id = crypto.randomUUID();
+    const shortcode = resolvedUrl?.match(/\/p\/([^/]+)/)?.[1] || 'post';
+    const name = `instagram_${shortcode}.${guessExtension(gridImage, 'jpg')}`;
+    dbg('[mdl] instagram grid tile → direct CDN image', name);
+    addHistory({ id, url: gridImage, filename: name, status: 'downloading' });
+    toast(id, 'Downloading ' + name, 'downloading');
+    downloadFile(gridImage, name, id);
+    return;
+  }
+
+  // A profile, /tagged/ or explore page is not a post: yt-dlp can only fail on
+  // it, slowly. Say what Chrome actually handed over so the next report names
+  // the cause instead of repeating "Download Failed".
+  if (onInstagram && !resolvedUrl && !info.linkUrl && !info.srcUrl && !isInstagramPostUrl(info.pageUrl)) {
+    const id = crypto.randomUUID();
+    const seen = `link=${info.linkUrl || '-'} src=${info.srcUrl || '-'} media=${info.mediaType || '-'} ctx=${info.contexts || '-'}`;
+    addHistory({ id, url: info.pageUrl, filename: '', status: 'error', error: 'Right-click the image itself' });
+    logFailure({ url: info.pageUrl, filename: '', error: `No media under cursor (${seen})`, method: 'context-menu' });
+    toast(id, 'Right-click the image itself', 'error');
+    return;
   }
 
   let url = resolvedUrl || info.linkUrl || info.srcUrl || info.pageUrl;
@@ -600,6 +633,35 @@ function unwrapRapidCdnUrl(url) {
   } catch (e) {
     console.warn('[mdl] rapidcdn JWT decode failed:', e?.message);
     return null;
+  }
+}
+
+function isInstagramUrl(url) {
+  try {
+    const h = new URL(url).hostname.replace(/^www\./, '');
+    return h === 'instagram.com' || h.endsWith('.instagram.com');
+  } catch {
+    return false;
+  }
+}
+
+function isInstagramPostUrl(url) {
+  try {
+    return /^\/(?:[^/]+\/)?(p|reel|tv)\//.test(new URL(url).pathname);
+  } catch {
+    return false;
+  }
+}
+
+// Instagram serves its media from cdninstagram.com / fbcdn.net. A right-click
+// that landed on the image gives us that URL directly — no API in between.
+function isInstagramCdnImage(url) {
+  try {
+    const u = new URL(url);
+    if (!/(^|\.)(cdninstagram\.com|fbcdn\.net)$/.test(u.hostname)) return false;
+    return /\.(jpg|jpeg|png|webp|heic)$/.test(u.pathname.toLowerCase());
+  } catch {
+    return false;
   }
 }
 

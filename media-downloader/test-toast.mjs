@@ -14,7 +14,7 @@ function load(imgs, rightClick) {
   let onMessage;
   const winListeners = [];
   const sandbox = {
-    URL, console,
+    URL, console, location: { origin: 'https://www.instagram.com' },
     window: { addEventListener: (t, fn) => winListeners.push([t, fn]) },
     document: {
       addEventListener() {}, getElementById: () => null,
@@ -77,5 +77,31 @@ assert.strictEqual(send({ type: 'get-right-clicked-svg' }).svg, null);
 const logo = fakeSvg('logo', rect(200, 200, 300, 300));
 send = load([], { type: 'contextmenu', target: wrapper([muteIcon, logo]), clientX: 250, clientY: 250 });
 assert.strictEqual(send({ type: 'get-right-clicked-svg' }).id, 'logo');
+
+// 4. Instagram /tagged/ grid: tiles link to /<username>/p/<code>/, and a photo
+// tile hands back the CDN image the user actually clicked.
+const igTile = (href, imgSrc) => {
+  const image = { tagName: 'IMG', src: imgSrc, getBoundingClientRect: () => rect(0, 0, 300, 300) };
+  const anchor = {
+    tagName: 'A', getAttribute: (k) => (k === 'href' ? href : null),
+    querySelector: () => image, querySelectorAll: () => [],
+    parentNode: null, getBoundingClientRect: () => rect(0, 0, 300, 300),
+  };
+  image.parentNode = anchor;
+  return image;
+};
+
+send = load([], { type: 'contextmenu', target: igTile('/_digital_jungle/p/Dc-14PogoJ9/', 'https://scontent.cdninstagram.com/v/x.jpg'), clientX: 150, clientY: 150 });
+assert.deepStrictEqual({ ...send({ type: 'get-instagram-post-url' }) }, {
+  url: 'https://www.instagram.com/p/Dc-14PogoJ9/',
+  image: 'https://scontent.cdninstagram.com/v/x.jpg',
+});
+
+// A reel tile shows only a poster frame — keep the permalink, drop the image
+send = load([], { type: 'contextmenu', target: igTile('/mothership_se/reel/DdHN0n6CSHd/', 'https://scontent.cdninstagram.com/v/poster.jpg'), clientX: 150, clientY: 150 });
+assert.deepStrictEqual({ ...send({ type: 'get-instagram-post-url' }) }, {
+  url: 'https://www.instagram.com/reel/DdHN0n6CSHd/',
+  image: null,
+});
 
 console.log('ok');

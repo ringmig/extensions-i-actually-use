@@ -250,12 +250,29 @@
   // knows which post it belongs to: each post is wrapped in <article>, and
   // a permalink anchor (/p/, /reel/, /tv/) lives inside it. Profile grids
   // skip the <article> and use the anchor as the tile wrapper.
-  function findInstagramPostUrl(el) {
-    if (!el) return null;
+  function findInstagramTarget(el) {
+    const hit = walkInstagramTile(el);
+    if (hit.url || hit.image) return hit;
+    // The right-click target is not always inside the tile's <a> — Instagram
+    // swaps overlays in on hover, and a stale target leaves us with nothing.
+    // The element stack at the cursor still contains the anchor and the image.
+    if (lastRightClickPos) {
+      for (const node of document.elementsFromPoint(lastRightClickPos.x, lastRightClickPos.y)) {
+        const found = walkInstagramTile(node);
+        if (found.url || found.image) return found;
+      }
+    }
+    return { url: null, image: null };
+  }
+
+  function walkInstagramTile(el) {
+    if (!el) return { url: null, image: null };
     const matchPost = (href) => {
       try {
         const u = new URL(href, location.origin);
-        const m = u.pathname.match(/^\/(p|reel|tv)\/([^/?#]+)/);
+        // Profile grids and the /tagged/ tab prefix the permalink with the
+        // post author's username: /_digital_jungle/p/Dc-14PogoJ9/
+        const m = u.pathname.match(/^\/(?:[^/]+\/)?(p|reel|tv)\/([^/?#]+)/);
         return m ? `${u.origin}/${m[1]}/${m[2]}/` : null;
       } catch { return null; }
     };
@@ -266,7 +283,7 @@
         const links = node.querySelectorAll('a[href*="/p/"], a[href*="/reel/"], a[href*="/tv/"]');
         for (const a of links) {
           const found = matchPost(a.getAttribute('href'));
-          if (found) return found;
+          if (found) return { url: found, image: null };
         }
         break;
       }
@@ -277,11 +294,18 @@
     while (node && node !== document.body && node !== document.documentElement) {
       if (node.tagName && node.tagName.toLowerCase() === 'a' && node.getAttribute('href')) {
         const found = matchPost(node.getAttribute('href'));
-        if (found) return found;
+        if (found) {
+          // On a grid the tile itself is what the user aimed at, so a photo
+          // tile downloads straight from the CDN. A reel tile only shows a
+          // poster frame, so that one keeps going to the permalink.
+          const img = el.tagName === 'IMG' ? el : node.querySelector('img');
+          const image = /\/p\//.test(found) && img && img.src ? img.src : null;
+          return { url: found, image };
+        }
       }
       node = node.parentNode;
     }
-    return null;
+    return { url: null, image: null };
   }
 
   // Scrape TikTok carousel images from the DOM when requested.
@@ -329,7 +353,7 @@
       return false;
     }
     if (msg.type === 'get-instagram-post-url') {
-      sendResponse({ url: findInstagramPostUrl(lastRightClickTarget) });
+      sendResponse(findInstagramTarget(lastRightClickTarget));
       return false;
     }
     if (msg.type === 'get-right-clicked-svg') {
