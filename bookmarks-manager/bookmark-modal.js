@@ -24,6 +24,14 @@
   let deleteArmed = false;
   let scrollLock = null;
 
+  // Folder picker
+  let byId = new Map();
+  let kids = new Map(); // parentId (null at the top) → child folders
+  let cwd = null;       // the folder whose children are listed
+  let query = '';
+  let active = 0;
+  let rows = [];
+
   // Values lifted from the manager's :root so both surfaces stay one design.
   // Inter is not loaded here — a webfont in an injected shadow root is subject
   // to the host page's CSP — so the system stack carries the type.
@@ -75,44 +83,91 @@
     }
     input[type="text"]:focus { outline: 2px solid #4A9EFF; outline-offset: 1px; }
 
-    /* Folder picker — a real listbox, never a native select */
-    .picker { position: relative; }
+    /* Folder picker — one level at a time, search across all of them.
+       Never a native select. */
+    .field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #8A8A8A; }
+    .picker { position: relative; font-size: 14px; color: #F0F0F0; }
     .picker-btn {
       width: 100%; min-height: 44px;
       background: #000000; border: 1px solid #1E1E1E; border-radius: 8px;
       padding: 10px 12px; color: #F0F0F0; font: inherit;
-      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      display: flex; align-items: center; gap: 8px;
       cursor: pointer; text-align: left;
     }
     .picker-btn:hover { background: #191919; border-color: #333; }
     .picker-btn:focus-visible { outline: 2px solid #4A9EFF; outline-offset: 1px; }
+    .picker-btn .value { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .picker-btn .chev { color: #4A4A4A; flex-shrink: 0; }
+    .crumb { color: #8A8A8A; }
 
-    .picker-list {
-      position: absolute; left: 0; right: 0; top: calc(100% + 4px);
-      max-height: 240px; overflow-y: auto;
-      /* Don't hand the scroll on to the page when the list bottoms out */
-      overscroll-behavior: contain;
+    .pop {
+      position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 2;
       background: #191919; border: 1px solid #333; border-radius: 8px;
       box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
-      padding: 4px; z-index: 2;
+      display: flex; flex-direction: column; overflow: hidden;
     }
-    .picker-list[hidden] { display: none; }
-    .opt {
-      display: block; width: 100%; min-height: 36px;
-      background-color: transparent; border: none; border-radius: 6px;
-      color: #F0F0F0; font: inherit; text-align: left;
-      padding: 8px 10px; cursor: pointer;
+    .pop[hidden] { display: none; }
+
+    input.search {
+      background: none; border: none; border-bottom: 1px solid #333; border-radius: 0;
+      padding: 11px 12px; min-height: 0;
+    }
+    input.search:focus { outline: none; border-bottom-color: #4A9EFF; }
+    input.search::placeholder { color: #4A4A4A; }
+
+    .trail {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 2px;
+      padding: 6px 8px; border-bottom: 1px solid #333;
+      font-size: 12px; color: #4A4A4A;
+    }
+    .trail[hidden] { display: none; }
+    .trail button {
+      background: none; border: none; border-radius: 4px; padding: 2px 6px;
+      color: #8A8A8A; font: inherit; cursor: pointer;
+    }
+    .trail button:hover { background: #222222; color: #F0F0F0; }
+    .trail button:last-of-type { color: #F0F0F0; }
+
+    .list {
+      max-height: 360px; overflow-y: auto; padding: 4px;
+      /* Don't hand the scroll on to the page when the list bottoms out */
+      overscroll-behavior: contain;
+    }
+    .row {
+      display: flex; align-items: center; gap: 8px; min-height: 36px;
+      padding: 0 10px; border-radius: 6px; cursor: pointer;
+    }
+    .row.active { background: #222222; }
+    .row .icon { color: #4A4A4A; flex-shrink: 0; }
+    .row .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .row .name mark {
+      background: none; color: inherit; font-weight: 600;
+      text-decoration: underline; text-underline-offset: 3px;
+    }
+    .row[aria-selected="true"] .name, .row[aria-selected="true"] .icon { color: #4A9EFF; }
+    .row .path {
+      flex: 1; min-width: 0; text-align: right; font-size: 12px; color: #8A8A8A;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      /* One hairline per ancestor level; renderPicker sets how many via background-size */
-      background-image: repeating-linear-gradient(90deg, #333 0 1px, transparent 1px 16px);
-      background-position: 15px 0;
-      background-repeat: no-repeat;
-      background-size: 0 100%;
+      /* rtl clips the far end of the path, so the nearest parent stays readable */
+      direction: rtl;
     }
-    .opt:hover { background-color: #222222; }
-    .opt[aria-selected="true"] { background-color: #2A2A2A; color: #4A9EFF; }
-    .opt:focus-visible { outline: 2px solid #4A9EFF; outline-offset: -2px; }
+    .row .gap { flex: 1; }
+    .row .count { font-size: 12px; color: #4A4A4A; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+    /* Going into a folder is half the interaction: a full-height target out
+       to the row's edge, not a small icon */
+    .row .enter {
+      width: 44px; align-self: stretch; margin-right: -10px; flex-shrink: 0;
+      display: grid; place-items: center;
+      background: rgba(255, 255, 255, 0.06); color: #F0F0F0;
+      border: none; border-left: 1px solid #333; border-radius: 0 6px 6px 0;
+      cursor: pointer;
+    }
+    .row .enter:hover { background: rgba(255, 255, 255, 0.14); }
+    .empty { padding: 16px 10px; color: #8A8A8A; }
+    .hint {
+      padding: 7px 12px; border-top: 1px solid #333;
+      font-size: 11px; color: #4A4A4A; white-space: pre;
+    }
 
     /* Quick picks: the folders most recently bookmarked into, one click away */
     .recent { display: flex; flex-wrap: wrap; gap: 6px; margin-top: -8px; }
@@ -122,7 +177,7 @@
       color: #8A8A8A; font: 500 12px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       cursor: pointer;
       /* Grow to share each wrapped row evenly; min-width lets the ellipsis work */
-      flex: 1 1 auto; min-width: 0;
+      flex: 1 1 auto; min-width: 0; max-width: 100%;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .chip:hover { background: #191919; border-color: #333; color: #F0F0F0; }
@@ -180,6 +235,13 @@
     selectedId = existing ? existing.parentId : (folders[0] && folders[0].id);
     deleteArmed = false;
 
+    byId = new Map(folders.map((f) => [f.id, f]));
+    kids = new Map();
+    for (const f of folders) {
+      if (!kids.has(f.parentId)) kids.set(f.parentId, []);
+      kids.get(f.parentId).push(f);
+    }
+
     render(existing ? existing.title : document.title);
   }
 
@@ -229,19 +291,26 @@
           <input type="text" id="url" spellcheck="false">
         </label>
 
-        <label>Mapp
+        <!-- A div, not a label: a label forwards every click inside it to the button -->
+        <div class="field">Mapp
           <div class="picker">
             <button type="button" class="picker-btn" id="picker"
                     aria-haspopup="listbox" aria-expanded="false">
-              <span id="picker-label"></span>
+              <span class="value" id="picker-label"></span>
               <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="none"
                    stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
                 <path d="M3 4.5 6 7.5 9 4.5"/>
               </svg>
             </button>
-            <div class="picker-list" id="list" role="listbox" hidden></div>
+            <div class="pop" id="pop" hidden>
+              <input type="text" class="search" id="search" placeholder="Sök mapp"
+                     spellcheck="false" autocomplete="off" aria-label="Sök mapp">
+              <div class="trail" id="trail" hidden></div>
+              <div class="list" id="list" role="listbox"></div>
+              <div class="hint" id="hint"></div>
+            </div>
           </div>
-        </label>
+        </div>
 
         <div class="recent" id="recent" role="group" aria-label="Senaste mappar"></div>
 
@@ -264,6 +333,11 @@
     renderPicker();
 
     backdrop.addEventListener('mousedown', (e) => {
+      // A click outside the open list closes the list, not the whole dialog
+      if (!$('pop').hidden) {
+        if (!e.target.closest('.picker')) closePicker();
+        return;
+      }
       if (e.target === backdrop) close();
     });
 
@@ -276,6 +350,12 @@
     $('save').addEventListener('click', save);
     if (existing) $('remove').addEventListener('click', remove);
     $('picker').addEventListener('click', togglePicker);
+    $('search').addEventListener('input', (e) => {
+      query = e.target.value;
+      active = 0;
+      renderList();
+    });
+    $('search').addEventListener('keydown', pickerKeys);
 
     // Sites with a smooth-scroll library (Lenis, Locomotive, Framer) intercept
     // wheel events on window and move the page themselves, so the native scroll
@@ -296,19 +376,25 @@
 
   // ── Folder picker ──
 
-  function folderName(id) {
-    const f = folders.find((x) => x.id === id);
-    return f ? f.label : 'Bokmärkesfältet';
+  const FOLDER_ICON = '<svg class="icon" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M1.5 3.5a1 1 0 0 1 1-1h2.6l1.3 1.5h5.1a1 1 0 0 1 1 1v5.5a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1z"/></svg>';
+  const ENTER_ICON = '<svg width="14" height="14" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg>';
+
+  function fullPath(f) {
+    return [...f.path, f.label].join(' › ');
   }
 
   function renderChips() {
     const row = root.getElementById('recent');
     row.innerHTML = '';
-    for (const f of recent) {
+    const lines = new Map(); // offsetTop → chips on that line
+    for (const r of recent) {
+      const f = byId.get(r.id);
+      if (!f) continue;
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.className = 'chip';
       chip.textContent = f.label;
+      chip.title = fullPath(f);
       chip.setAttribute('aria-pressed', String(f.id === selectedId));
       // A quick pick is the whole action: choose the folder and it is saved.
       // The dropdown is for when you want to look before committing.
@@ -317,62 +403,226 @@
         save();
       });
       row.appendChild(chip);
+      // Two rows, never a third: a name too long for what is left of row two
+      // is dropped and the next candidate gets its chance.
+      const top = chip.offsetTop;
+      if (!lines.has(top) && lines.size === 2) { chip.remove(); continue; }
+      if (!lines.has(top)) lines.set(top, []);
+      lines.get(top).push(chip);
+    }
+    // A chip alone on its row keeps its own width instead of spanning the dialog
+    for (const line of lines.values()) {
+      if (line.length === 1) line[0].style.flexGrow = '0';
     }
   }
 
   function renderPicker() {
-    root.getElementById('picker-label').textContent = folderName(selectedId);
+    const sel = byId.get(selectedId);
+    const label = root.getElementById('picker-label');
+    label.textContent = '';
+    if (sel && sel.path.length) {
+      const crumb = document.createElement('span');
+      crumb.className = 'crumb';
+      crumb.textContent = sel.path.join(' › ') + ' › ';
+      label.append(crumb);
+    }
+    label.append(sel ? sel.label : 'Bokmärkesfältet');
     renderChips();
+  }
+
+  // Typing searches every folder by name and path; an empty field browses
+  // the current level, with the level itself first so it can be chosen.
+  function buildRows() {
+    const q = query.trim().toLowerCase();
+    if (q) {
+      const terms = q.split(/\s+/);
+      const rank = (f) => {
+        const name = f.label.toLowerCase();
+        return name.startsWith(terms[0]) ? 0 : name.includes(terms[0]) ? 1 : 2;
+      };
+      return folders
+        .filter((f) => {
+          const hay = fullPath(f).toLowerCase();
+          return terms.every((t) => hay.includes(t));
+        })
+        .sort((a, b) => rank(a) - rank(b) || a.path.length - b.path.length)
+        .map((f) => ({ f, path: true, mark: terms[0] }));
+    }
+    const out = (kids.get(cwd) || []).map((f) => ({ f, enter: kids.has(f.id) }));
+    if (cwd) out.unshift({ f: byId.get(cwd), here: true });
+    return out;
+  }
+
+  function renderTrail(show) {
+    const trail = root.getElementById('trail');
+    trail.hidden = !show;
+    if (!show) return;
+    trail.innerHTML = '';
+    const chain = [];
+    for (let f = byId.get(cwd); f; f = byId.get(f.parentId)) chain.unshift(f);
+    const add = (text, id) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.tabIndex = -1;
+      b.textContent = text;
+      b.addEventListener('click', () => {
+        cwd = id;
+        active = 0;
+        renderList();
+        root.getElementById('search').focus();
+      });
+      if (trail.children.length) trail.append('›');
+      trail.append(b);
+    };
+    add('Alla', null);
+    for (const f of chain) add(f.label, f.id);
+  }
+
+  function renderList() {
+    const browsing = !query.trim();
+    renderTrail(browsing);
+    root.getElementById('hint').textContent = browsing
+      ? '↑↓ flytta   → gå in   ← upp   Enter välj'
+      : '↑↓ flytta   Enter välj';
+
+    rows = buildRows();
+    active = Math.max(0, Math.min(active, rows.length - 1));
 
     const list = root.getElementById('list');
     list.innerHTML = '';
-    for (const f of folders) {
-      const opt = document.createElement('button');
-      opt.type = 'button';
-      opt.className = 'opt';
-      opt.role = 'option';
-      opt.dataset.id = f.id;
-      opt.setAttribute('aria-selected', String(f.id === selectedId));
-      opt.textContent = f.label;
-      opt.style.paddingLeft = (10 + f.depth * 16) + 'px';
-      opt.style.backgroundSize = (f.depth * 16) + 'px 100%';
-      opt.addEventListener('click', () => {
-        selectedId = f.id;
-        closePicker();
-        renderPicker();
-        root.getElementById('picker').focus();
-      });
-      list.appendChild(opt);
+    if (!rows.length) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.textContent = browsing ? 'Inga undermappar här' : `Ingen mapp matchar "${query.trim()}"`;
+      list.append(empty);
+      return;
     }
+
+    rows.forEach((row, i) => {
+      const { f } = row;
+      const el = document.createElement('div');
+      el.className = 'row' + (i === active ? ' active' : '');
+      el.role = 'option';
+      el.setAttribute('aria-selected', String(f.id === selectedId));
+      el.insertAdjacentHTML('beforeend', FOLDER_ICON);
+
+      const name = document.createElement('span');
+      name.className = 'name';
+      const text = row.here ? `Spara i ${f.label}` : f.label;
+      const at = row.mark ? text.toLowerCase().indexOf(row.mark) : -1;
+      if (at < 0) {
+        name.textContent = text;
+      } else {
+        const mark = document.createElement('mark');
+        mark.textContent = text.slice(at, at + row.mark.length);
+        name.append(text.slice(0, at), mark, text.slice(at + row.mark.length));
+      }
+      el.append(name);
+
+      if (row.path && f.path.length) {
+        const p = document.createElement('span');
+        p.className = 'path';
+        const bdi = document.createElement('bdi');
+        bdi.textContent = f.path.join(' › ');
+        p.append(bdi);
+        el.append(p);
+      } else {
+        el.insertAdjacentHTML('beforeend', '<span class="gap"></span>');
+      }
+      if (f.count) {
+        const c = document.createElement('span');
+        c.className = 'count';
+        c.textContent = f.count;
+        el.append(c);
+      }
+      if (row.enter) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.tabIndex = -1;
+        b.className = 'enter';
+        b.title = 'Visa undermappar';
+        b.innerHTML = ENTER_ICON;
+        b.addEventListener('click', (e) => { e.stopPropagation(); enterFolder(f); });
+        el.append(b);
+      }
+
+      el.addEventListener('click', () => choose(f));
+      el.addEventListener('mousemove', () => {
+        if (active === i) return;
+        const was = list.querySelector('.row.active');
+        if (was) was.classList.remove('active');
+        el.classList.add('active');
+        active = i;
+      });
+      list.append(el);
+    });
+    const current = list.querySelector('.row.active');
+    if (current) current.scrollIntoView({ block: 'nearest' });
+  }
+
+  function choose(f) {
+    selectedId = f.id;
+    closePicker();
+    renderPicker();
+    root.getElementById('picker').focus();
+  }
+
+  function enterFolder(f) {
+    cwd = f.id;
+    active = 0;
+    renderList();
+    root.getElementById('search').focus();
   }
 
   function togglePicker() {
-    const list = root.getElementById('list');
-    if (list.hidden) {
-      list.hidden = false;
-      root.getElementById('picker').setAttribute('aria-expanded', 'true');
-      const current = list.querySelector('[aria-selected="true"]') || list.firstElementChild;
-      if (current) { current.focus(); current.scrollIntoView({ block: 'nearest' }); }
-      list.addEventListener('keydown', pickerKeys);
-    } else {
-      closePicker();
-    }
+    const pop = root.getElementById('pop');
+    if (!pop.hidden) { closePicker(); return; }
+    // Open on the level the chosen folder sits in, with it highlighted. A
+    // top-level choice opens the bookmarks bar itself: that is where the
+    // folders are, the level above it is two rows.
+    const sel = byId.get(selectedId);
+    cwd = (sel && sel.parentId) || (byId.has('1') ? '1' : null);
+    query = '';
+    root.getElementById('search').value = '';
+    active = Math.max(0, buildRows().findIndex((r) => !r.here && r.f.id === selectedId));
+    pop.hidden = false;
+    root.getElementById('picker').setAttribute('aria-expanded', 'true');
+    renderList();
+    root.getElementById('search').focus();
   }
 
   function closePicker() {
-    const list = root.getElementById('list');
-    list.hidden = true;
-    list.removeEventListener('keydown', pickerKeys);
+    root.getElementById('pop').hidden = true;
     root.getElementById('picker').setAttribute('aria-expanded', 'false');
   }
 
+  // Handled keys stop here so the dialog's own Enter-saves and Escape-closes
+  // do not fire while the list is open.
   function pickerKeys(e) {
-    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    const row = rows[active];
+    const browsing = !query.trim();
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      active += e.key === 'ArrowDown' ? 1 : -1;
+      renderList();
+    } else if (e.key === 'Enter') {
+      if (row) choose(row.f);
+    } else if (e.key === 'Escape') {
+      closePicker();
+      root.getElementById('picker').focus();
+    } else if (browsing && e.key === 'ArrowRight') {
+      if (row && row.enter) enterFolder(row.f);
+    } else if (browsing && e.key === 'ArrowLeft') {
+      if (cwd) {
+        const from = cwd;
+        cwd = byId.get(from).parentId;
+        active = Math.max(0, buildRows().findIndex((r) => !r.here && r.f.id === from));
+        renderList();
+      }
+    } else {
+      return;
+    }
     e.preventDefault();
-    const opts = [...root.getElementById('list').querySelectorAll('.opt')];
-    const i = opts.indexOf(root.activeElement);
-    const next = opts[e.key === 'ArrowDown' ? Math.min(i + 1, opts.length - 1) : Math.max(i - 1, 0)];
-    if (next) { next.focus(); next.scrollIntoView({ block: 'nearest' }); }
+    e.stopPropagation();
   }
 
   // ── Save / remove ──

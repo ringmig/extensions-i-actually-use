@@ -204,25 +204,39 @@ function sleep(ms) {
 // ═══════════════════════════════════
 
 // Content scripts have no chrome.bookmarks, so the modal asks for everything
-// here. Folders come back flattened with a depth so the picker can indent them.
+// here. Folders come back flattened in tree order, each with its parent and
+// the names above it, so the picker can browse a level at a time and search
+// across the whole tree.
 async function folderList() {
   const tree = await chrome.bookmarks.getTree();
   const out = [];
-  const walk = (nodes, depth) => {
+  const walk = (nodes, depth, parentId, path) => {
     for (const n of nodes) {
       if (n.url) continue;
-      if (n.id !== '0') out.push({ id: n.id, label: n.title || 'Bokmärken', depth });
-      if (n.children) walk(n.children, n.id === '0' ? depth : depth + 1);
+      const isRoot = n.id === '0';
+      const label = n.title || 'Bokmärken';
+      if (!isRoot) {
+        out.push({
+          id: n.id, label, depth, parentId, path,
+          count: (n.children || []).filter((c) => c.url).length,
+        });
+      }
+      if (!n.children) continue;
+      // The bookmarks bar holds nearly everything: naming it in every path is noise
+      const below = isRoot || n.id === '1' ? [] : [...path, label];
+      walk(n.children, isRoot ? depth : depth + 1, isRoot ? null : n.id, below);
     }
   };
-  walk(tree, 0);
+  walk(tree, 0, null, []);
   return out;
 }
 
 // Folders most recently bookmarked into. Derived from Chrome's own recent list
 // rather than a stored history, so it is useful on the first run and needs no
 // extra state — saves made through this modal land there like any other.
-function recentFolders(folders, recent, limit = 5) {
+// More than the modal shows: it drops names too long for its two rows and
+// needs candidates to fill the gap with.
+function recentFolders(folders, recent, limit = 24) {
   const byId = new Map(folders.map((f) => [f.id, f.label]));
   const out = [];
   for (const b of recent) {
@@ -240,7 +254,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const [folders, hits, recent] = await Promise.all([
         folderList(),
         chrome.bookmarks.search({ url: msg.url }),
-        chrome.bookmarks.getRecent(60),
+        chrome.bookmarks.getRecent(200),
       ]);
       const hit = hits.find((h) => h.url === msg.url) || null;
       sendResponse({
