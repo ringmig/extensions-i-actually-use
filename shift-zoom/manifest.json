@@ -1,12 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Shift Zoom",
-  "version": "1.1",
-  "description": "Shift + scroll to zoom into cursor position",
+  "version": "1.2",
+  "description": "Shift + scroll to zoom into cursor position. Cmd+click always opens a new tab",
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "js": ["content.js", "cmd-click.js"],
       "all_frames": true,
       "run_at": "document_start"
     }
