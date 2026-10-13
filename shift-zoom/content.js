@@ -10,29 +10,29 @@
     return document.fullscreenElement || document.documentElement;
   }
 
+  function clear(el) {
+    el.style.translate = '';
+    el.style.scale = '';
+    el.style.transformOrigin = '';
+  }
+
+  // Chrome's UA sheet sets `transform: none !important` on :fullscreen, which beats inline
+  // styles. The individual translate/scale properties are not reset, so use those.
   function applyTransform() {
     const target = getTarget();
-    // If target changed (e.g. entered/exited fullscreen), clean up old one
-    if (lastTarget && lastTarget !== target) {
-      lastTarget.style.transform = '';
-      lastTarget.style.transformOrigin = '';
-    }
+    if (lastTarget && lastTarget !== target) clear(lastTarget);
     lastTarget = target;
     target.style.transformOrigin = '0 0';
-    target.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+    target.style.translate = `${tx}px ${ty}px`;
+    target.style.scale = scale;
   }
 
   function reset() {
     scale = 1;
     tx = 0;
     ty = 0;
-    const target = getTarget();
-    target.style.transform = '';
-    target.style.transformOrigin = '';
-    if (lastTarget && lastTarget !== target) {
-      lastTarget.style.transform = '';
-      lastTarget.style.transformOrigin = '';
-    }
+    clear(getTarget());
+    if (lastTarget) clear(lastTarget);
     lastTarget = null;
   }
 
@@ -43,6 +43,8 @@
 
   window.addEventListener('wheel', (e) => {
     if (!e.shiftKey) return;
+    // In an iframe, only zoom when its content is fullscreen (embedded players)
+    if (window !== window.top && !document.fullscreenElement) return;
     e.preventDefault();
     e.stopPropagation();
 
