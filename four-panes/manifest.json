@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Four Panes",
+  "version": "1.0",
+  "description": "Four Chrome windows in a 2x2 grid on the current screen",
+  "permissions": ["storage", "system.display"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": { "default_title": "Four Panes" },
+  "options_ui": { "page": "options.html", "open_in_tab": true },
+  "commands": { "_execute_action": { "description": "Open or tile the four panes" } }
+}
