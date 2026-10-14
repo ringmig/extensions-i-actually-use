@@ -16,7 +16,7 @@
   .row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
   .row label { margin: 0; color: var(--fg); font-size: 15px; }
   .row input[type=number] { width: 80px; }
-  p.hint { color: var(--muted); font-size: 13px; margin: -8px 0 16px 28px; }
+  input[type=color] { width: 44px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: none; }
   #status { color: var(--muted); font-size: 13px; min-height: 1.4em; }
 </style>
 </head>
@@ -29,9 +29,8 @@
     <div><label for="p2">Nere till vänster</label><input type="text" id="p2" spellcheck="false"></div>
     <div><label for="p3">Nere till höger</label><input type="text" id="p3" spellcheck="false"></div>
   </div>
-  <div class="row"><input type="number" id="gap" min="0" max="200"><label for="gap">pixlar mellan fönstren</label></div>
-  <div class="row"><input type="checkbox" id="bare"><label for="bare">Utan flikrad och adressfält</label></div>
-  <p class="hint">Ger mer yta, men Cmd+L och flikar fungerar inte i de fönstren.</p>
+  <div class="row"><input type="number" id="gap" min="0" max="50"><label for="gap">pixlar mellan rutorna</label></div>
+  <div class="row"><input type="color" id="color"><label for="color">färg på skiljelinjerna</label></div>
   <div id="status" role="status"></div>
 </main>
 <script type="module" src="options.js"></script>

@@ -1,11 +1,16 @@
 {
   "manifest_version": 3,
   "name": "Four Panes",
-  "version": "1.0",
-  "description": "Four Chrome windows in a 2x2 grid on the current screen",
-  "permissions": ["storage", "system.display"],
+  "version": "2.0",
+  "description": "Four browser panes in a 2x2 split, in one fullscreen window",
+  "permissions": ["storage", "declarativeNetRequestWithHostAccess"],
+  "host_permissions": ["<all_urls>"],
   "background": { "service_worker": "background.js", "type": "module" },
   "action": { "default_title": "Four Panes" },
   "options_ui": { "page": "options.html", "open_in_tab": true },
-  "commands": { "_execute_action": { "description": "Open or tile the four panes" } }
+  "commands": { "_execute_action": { "description": "Open the four panes" } },
+  "content_scripts": [
+    { "matches": ["<all_urls>"], "js": ["pane.js"], "run_at": "document_start", "all_frames": true },
+    { "matches": ["<all_urls>"], "js": ["pane-main.js"], "run_at": "document_start", "all_frames": true, "world": "MAIN" }
+  ]
 }
