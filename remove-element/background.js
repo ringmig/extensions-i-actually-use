@@ -4,9 +4,14 @@ chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.create({ id: 'pick', title: 'Remove Element', contexts: ['page', 'frame', 'link', 'image', 'video', 'audio', 'selection'] }))
 })
 
-const pick = (tab) => chrome.tabs.sendMessage(tab.id, 'pick', { frameId: 0 }).catch(() => {})
-chrome.action.onClicked.addListener(pick)
-chrome.contextMenus.onClicked.addListener((_, tab) => pick(tab))
+// Four Panes' grid is an extension page, where this extension's scripts never run.
+// Nothing answers there, so the request goes to Four Panes, which bundles a copy.
+// Its id is fixed by the key in its manifest.
+const FOUR_PANES = 'pagdgihehgjihhedbfdlgekkekkjlabc'
+const pick = (tab, frameId = 0) => chrome.tabs.sendMessage(tab.id, 'pick', { frameId: 0 })
+  .catch(() => chrome.runtime.sendMessage(FOUR_PANES, { removeElement: 'pick', tabId: tab.id, frameId }).catch(() => {}))
+chrome.action.onClicked.addListener((tab) => pick(tab))
+chrome.contextMenus.onClicked.addListener(({ frameId }, tab) => pick(tab, frameId))
 
 chrome.runtime.onMessage.addListener((msg, sender) => {
   if (typeof msg.picking === 'boolean' && sender.tab)

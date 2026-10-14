@@ -10,3 +10,13 @@ chrome.contextMenus.onClicked.addListener(openGrid)
 
 chrome.tabs.onRemoved.addListener((tabId) =>
   chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: [tabId] }))
+
+// Remove Element cannot reach the panes and forwards its toolbar button, shortcut
+// and menu here. A right-click names its pane; the others mean the pane under the pointer.
+chrome.runtime.onMessageExternal.addListener((msg) => {
+  if (msg?.removeElement !== 'pick') return
+  const { tabId, frameId } = msg
+  const underPointer = () => chrome.runtime.sendMessage({ removeElement: 'pick', tabId }).catch(() => {})
+  if (frameId > 0) chrome.tabs.sendMessage(tabId, 'pick', { frameId }).catch(underPointer)
+  else underPointer()
+})

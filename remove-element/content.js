@@ -2,8 +2,13 @@
 // sheet from document_start, so they never flash in and stay gone when a
 // framework re-renders them. Picking runs in the top frame only.
 (() => {
+  // A Four Panes pane is a whole page in an extension's iframe: treat it as a tab.
+  const isPane = window.parent === window.top && !!location.ancestorOrigins?.[0]?.startsWith('chrome-extension://')
+  // Bundled into Four Panes, this copy only serves the panes; the standalone extension has every other tab.
+  if (chrome.runtime.getManifest().name !== 'Remove Element' && !isPane) return
+  const top = window === window.top || isPane
   const host = location.hostname || location.href
-  const top = window === window.top
+  const tell = (picking) => chrome.runtime.sendMessage({ picking }).catch(() => {})
   let items = [] // { sel, label, shown }
   let panel = null
 
@@ -99,7 +104,7 @@
     panel.setItems(items)
     panel.show()
     for (const [t, f] of LISTEN) window.addEventListener(t, f, true)
-    chrome.runtime.sendMessage({ picking: true })
+    tell(true)
   }
   function stop() {
     if (!picking) return
@@ -107,8 +112,11 @@
     for (const [t, f] of LISTEN) window.removeEventListener(t, f, true)
     current = null; draw()
     panel.hide()
-    chrome.runtime.sendMessage({ picking: false })
+    tell(false)
   }
 
-  if (top) chrome.runtime.onMessage.addListener((msg) => { if (msg === 'pick') picking ? stop() : start() })
+  const toggle = () => picking ? stop() : start()
+  if (top) chrome.runtime.onMessage.addListener((msg) => { if (msg === 'pick') toggle() })
+  // Four Panes' grid asks the pane under the pointer directly.
+  if (isPane) addEventListener('message', (e) => { if (e.source === window.parent && e.data?.removeElement === 'pick') toggle() })
 })()

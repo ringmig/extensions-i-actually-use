@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Four Panes",
-  "version": "2.2",
+  "version": "2.4",
   "description": "Four browser panes in a 2x2 split, in one fullscreen window",
   "permissions": [
     "storage",
@@ -54,6 +54,17 @@
       "run_at": "document_start",
       "all_frames": true,
       "world": "MAIN"
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "remove-element/panel.js",
+        "remove-element/content.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true
     }
   ],
   "icons": {
@@ -61,5 +72,6 @@
     "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  }
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmM1wz8RGJY/MZV4frGoIQIRaDbdUrI85dP+pl4lHNBL8Kcj/9coL2NoUedNIfAdXd3ZOE/LOJrho2Jiw05VVXDm8IfaOvVLjByis7ZGk9lP7aLkb6IryUoGCeW8zBKEuCmMz4h6XfWJLu2N/jHqp9j/p45U0oSFHH5DzrOBMzMCrY0PtOLCDTTWGkAqdqxvBsI4uJ4ObPgHoWdSssbRilEGg0fa1lpul3rzg9Gu/pGpwsH1BMe+ASzE6uKMRMl69GT8ODgDwzBTIu3jNhEcOKbAG93mlImwyyJA48zg13SY8OEsSRcjHZysWHr1wqoYY3ju9sHQBNXkLpITmaJE5/QIDAQAB"
 }

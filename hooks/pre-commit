@@ -1,0 +1,9 @@
+#!/bin/sh
+# four-panes bundles remove-element's page scripts (Chrome keeps other extensions
+# out of its panes). Keep the copy identical on every commit.
+cd "$(git rev-parse --show-toplevel)" || exit 1
+for f in panel.js content.js; do
+  if ! cmp -s "remove-element/$f" "four-panes/remove-element/$f"; then
+    cp "remove-element/$f" "four-panes/remove-element/$f" && git add "four-panes/remove-element/$f"
+  fi
+done

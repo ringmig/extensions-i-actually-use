@@ -57,6 +57,10 @@ const act = (i, key, url) => {
   else if (key === 'home') panes[i].frame.src = panes[i].home
   else if (key === 'allhome') panes.forEach((p) => { p.frame.src = p.home })
 }
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg?.removeElement === 'pick' && msg.tabId === tabId)
+    panes[active].frame.contentWindow.postMessage({ removeElement: 'pick' }, '*')
+})
 addEventListener('message', (e) => {
   const i = panes.findIndex((p) => p.frame.contentWindow === e.source)
   if (i >= 0 && e.data?.fourPanes) act(i, e.data.fourPanes, e.data.url)
