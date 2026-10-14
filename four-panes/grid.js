@@ -66,3 +66,6 @@ addEventListener('keydown', (e) => {
   const key = e.key.toLowerCase() === 'l' ? 'l' : e.key.toLowerCase() === 'h' && e.shiftKey ? 'home' : e.key === 'R' && e.shiftKey ? 'allhome' : null
   if (key) { e.preventDefault(); act(active, key) }
 })
+
+// Cmd+W cannot be caught, so closing asks first: a stray press must not drop four panes.
+addEventListener('beforeunload', (e) => e.preventDefault())
