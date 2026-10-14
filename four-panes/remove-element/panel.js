@@ -6,6 +6,7 @@ const ICON = {
   eyeOff: '<path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/>',
   trash: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
   x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  chevron: '<path d="m18 15-6-6-6 6"/>',
 }
 const svg = (name) => `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[name]}</svg>`
 
@@ -30,9 +31,18 @@ const PANEL_CSS = `
   border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow);
   backdrop-filter: blur(16px); font: 13px/1.4 system-ui, -apple-system, sans-serif; overflow: hidden;
 }
-header { display: flex; align-items: center; gap: 8px; padding: 2px 2px 2px 14px; }
-h1 { font-size: 13px; font-weight: 600; }
-.host { color: var(--muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+header { display: flex; align-items: center; padding: 2px; }
+h1 { font-size: 13px; font-weight: 600; white-space: nowrap; }
+.host, .badge { color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.host { flex: 1; }
+button.toggle {
+  flex: 1; display: flex; place-items: initial; align-items: center; justify-content: flex-start; gap: 8px;
+  width: auto; min-width: 0; padding: 0 10px 0 12px; color: var(--fg); font: inherit; text-align: left;
+}
+.toggle svg { flex: none; margin-left: auto; color: var(--muted); transition: transform 160ms; }
+.panel:not(.collapsed) .toggle svg { transform: rotate(180deg); }
+.panel.collapsed { width: auto; }
+.collapsed .host, .collapsed .list-head, .collapsed ul, .panel:not(.collapsed) .badge { display: none; }
 .list-head { display: flex; justify-content: space-between; padding: 10px 14px 4px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
 ul { list-style: none; padding: 0 0 4px; max-height: 232px; overflow-y: auto; }
 li { display: grid; grid-template-columns: 1fr auto auto; align-items: center; min-height: 44px; padding-left: 14px; padding-right: 2px; }
@@ -48,15 +58,16 @@ button:hover { background: var(--hover); color: var(--fg); }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 button.armed { background: var(--accent-soft); color: var(--accent); }
 li.shown .eye { color: var(--fg); }
-@media (prefers-reduced-motion: reduce) { button { transition: none; } }
+@media (prefers-reduced-motion: reduce) { button, .toggle svg { transition: none; } }
 `
 
 function createPanel({ host, onToggle, onDelete, onClose }) {
   const el = document.createElement('remove-element-panel')
   const root = el.attachShadow({ mode: 'open' })
   root.innerHTML = `<style>${PANEL_CSS}</style>
-    <section class="panel" role="dialog" aria-label="Remove Element">
-      <header><h1>Remove Element</h1><span class="host"></span>
+    <section class="panel collapsed" role="dialog" aria-label="Remove Element">
+      <header><button class="toggle" aria-expanded="false" title="Visa listan"><h1>Remove Element</h1>
+        <span class="host"></span><span class="badge"></span>${svg('chevron')}</button>
         <button class="close" aria-label="Stäng (Esc)" title="Stäng (Esc)">${svg('x')}</button></header>
       <div class="list-head"><span>Dolt här</span><span class="count"></span></div>
       <ul></ul>
@@ -64,6 +75,12 @@ function createPanel({ host, onToggle, onDelete, onClose }) {
   const $ = (s) => root.querySelector(s)
   $('.host').textContent = host
   $('.close').addEventListener('click', onClose)
+  // Starts folded to a single row so it covers as little of the page as possible.
+  $('.toggle').addEventListener('click', () => {
+    const open = $('.panel').classList.toggle('collapsed') === false
+    $('.toggle').setAttribute('aria-expanded', open)
+    $('.toggle').title = open ? 'Dölj listan' : 'Visa listan'
+  })
 
   // Delete takes two clicks: the first arms the button, the second removes the item.
   let armed = null, disarm
@@ -91,6 +108,7 @@ function createPanel({ host, onToggle, onDelete, onClose }) {
     setItems(items) {
       armed = null
       $('.count').textContent = items.length ? String(items.length) : ''
+      $('.badge').textContent = items.length ? `${items.length} dolda` : ''
       const ul = $('ul')
       if (!items.length) { ul.innerHTML = '<li class="empty">Klicka på något på sidan för att dölja det.</li>'; return }
       ul.innerHTML = items.map((it, i) => `<li data-i="${i}" class="${it.shown ? 'shown' : ''}">
