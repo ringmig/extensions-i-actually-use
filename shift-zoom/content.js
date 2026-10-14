@@ -5,9 +5,13 @@
   let lastTarget = null;
   const MIN_SCALE = 1;
   const MAX_SCALE = 5;
+  // A Four Panes pane is a whole page in an extension's iframe: zoom it like a tab.
+  const isPane = window.parent === window.top &&
+    !!location.ancestorOrigins?.[0]?.startsWith('chrome-extension://');
 
   function getTarget() {
-    return document.fullscreenElement || document.documentElement;
+    // Four Panes fakes fullscreen in the page world, which this world cannot see: it marks the element.
+    return document.fullscreenElement || document.querySelector('[data-pane-fs]') || document.documentElement;
   }
 
   function clear(el) {
@@ -44,7 +48,7 @@
   window.addEventListener('wheel', (e) => {
     if (!e.shiftKey) return;
     // In an iframe, only zoom when its content is fullscreen (embedded players)
-    if (window !== window.top && !document.fullscreenElement) return;
+    if (window !== window.top && !isPane && !document.fullscreenElement) return;
     e.preventDefault();
     e.stopPropagation();
 
