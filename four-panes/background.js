@@ -20,3 +20,12 @@ chrome.runtime.onMessageExternal.addListener((msg) => {
   if (frameId > 0) chrome.tabs.sendMessage(tabId, 'pick', { frameId }).catch(underPointer)
   else underPointer()
 })
+
+// Until 3.4 removals lived in local storage; move them to sync once.
+chrome.runtime.onInstalled.addListener(async () => {
+  const { panes, gap, color, ...old } = await chrome.storage.local.get(null)
+  if (!Object.keys(old).length) return
+  const synced = await chrome.storage.sync.get(Object.keys(old))
+  await chrome.storage.sync.set(Object.fromEntries(Object.entries(old).filter(([k]) => !synced[k])))
+  await chrome.storage.local.remove(Object.keys(old))
+})

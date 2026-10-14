@@ -18,12 +18,14 @@
     if (!sheet.isConnected) document.documentElement.append(sheet)
     panel?.setItems(items)
   }
-  const save = () => { render(); chrome.storage.local.set({ [host]: items }) }
-  chrome.storage.local.get(host).then((r) => {
-    // 1.x stored bare selector strings.
-    items = (r[host] ?? []).map((i) => typeof i === 'string' ? { sel: i, label: i, shown: false } : i)
-    render()
-  })
+  // Sync storage follows the Chrome account to every machine.
+  // ponytail: sync allows 8 KB per site, roughly 80 removals; past that a save fails.
+  const save = () => { render(); chrome.storage.sync.set({ [host]: items }).catch(() => {}) }
+  // 1.x stored bare selector strings.
+  const load = (list) => { items = (list ?? []).map((i) => typeof i === 'string' ? { sel: i, label: i, shown: false } : i); render() }
+  chrome.storage.sync.get(host).then((r) => load(r[host]))
+  // Another tab or another machine changed this site's list.
+  chrome.storage.onChanged.addListener((c, area) => { if (area === 'sync' && c[host]) load(c[host].newValue) })
 
   // ponytail: positional selectors anchored at the nearest stable id; a site that
   // reshuffles its markup loses them. Upgrade: store several candidates per element.

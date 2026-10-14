@@ -23,3 +23,12 @@ chrome.action.setBadgeBackgroundColor({ color: '#ff453a' })
 chrome.tabs.onUpdated.addListener((tabId, { status }) => {
   if (status === 'loading') chrome.action.setBadgeText({ tabId, text: '' })
 })
+
+// Until 3.4 removals lived in local storage; move them to sync once.
+chrome.runtime.onInstalled.addListener(async () => {
+  const { panes, gap, color, ...old } = await chrome.storage.local.get(null)
+  if (!Object.keys(old).length) return
+  const synced = await chrome.storage.sync.get(Object.keys(old))
+  await chrome.storage.sync.set(Object.fromEntries(Object.entries(old).filter(([k]) => !synced[k])))
+  await chrome.storage.local.remove(Object.keys(old))
+})
