@@ -1,22 +1,47 @@
 {
   "manifest_version": 3,
   "name": "Remove Element",
-  "version": "2.0",
+  "version": "3.0",
   "description": "Point and click to remove things from a page, remembered per site",
-  "permissions": ["contextMenus", "storage"],
-  "background": { "service_worker": "background.js" },
+  "permissions": [
+    "contextMenus",
+    "storage"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
-    "default_title": "Remove Element: välj saker att ta bort",
-    "default_icon": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
+    "default_title": "Remove Element",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   },
-  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "commands": {
-    "_execute_action": { "suggested_key": { "default": "Alt+Shift+X" }, "description": "Slå på eller av borttagningsläget" }
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+X"
+      },
+      "description": "Slå på eller av Remove Element"
+    }
   },
-  "content_scripts": [{
-    "matches": ["<all_urls>"],
-    "js": ["content.js"],
-    "run_at": "document_start",
-    "all_frames": true
-  }]
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "panel.js",
+        "content.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ]
 }
