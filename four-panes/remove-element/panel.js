@@ -8,6 +8,14 @@ const ICON = {
   x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
   chevron: '<path d="m18 15-6-6-6 6"/>',
 }
+// Overlays live in the top layer as manual popovers, the only place above a
+// fullscreen element. Showing one again moves it to the top of that layer.
+function raise(node) {
+  if (!node.isConnected) document.documentElement.append(node)
+  node.popover = 'manual'
+  try { if (node.matches(':popover-open')) node.hidePopover(); node.showPopover() } catch {}
+}
+
 const svg = (name) => `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[name]}</svg>`
 
 const PANEL_CSS = `
@@ -100,7 +108,8 @@ function createPanel({ host, onToggle, onDelete, onClose }) {
 
   return {
     el,
-    show() { document.documentElement.append(el) },
+    show() { raise(el) },
+    raise() { if (el.isConnected) raise(el) },
     hide() { el.remove() },
     contains: (e) => e.composedPath().includes(el),
     rect: () => el.getBoundingClientRect(),

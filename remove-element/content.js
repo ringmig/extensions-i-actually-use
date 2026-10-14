@@ -61,13 +61,13 @@
   // Picking: the element under the pointer is outlined, a click hides it, Esc ends.
   let picking = false, current = null
   const box = document.createElement('div')
-  box.style.cssText = 'position:fixed;pointer-events:none;z-index:2147483646;box-sizing:border-box;' +
+  box.style.cssText = 'position:fixed;pointer-events:none;z-index:2147483646;box-sizing:border-box;margin:0;padding:0;overflow:visible;' +
     'border:2px solid #ff453a;background:rgba(255,69,58,.12);border-radius:4px'
   function draw() {
     if (!current) return box.remove()
     const r = current.getBoundingClientRect()
     Object.assign(box.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' })
-    document.documentElement.append(box)
+    if (!box.isConnected) raise(box)
     // Keep the panel off the element being pointed at.
     const p = panel.rect()
     if (r.left < p.right && r.right > p.left && r.top < p.bottom && r.bottom > p.top && r.width < innerWidth * 0.6) panel.flip()
@@ -91,6 +91,8 @@
   const redraw = () => current && draw()
   const LISTEN = [['mousemove', onMove], ['click', onClick], ['mousedown', swallow], ['mouseup', swallow],
     ['pointerdown', swallow], ['pointerup', swallow], ['auxclick', swallow], ['keydown', onKey], ['scroll', redraw]]
+  // Entering fullscreen puts the video above the overlays; lift them back over it.
+  const onFullscreen = () => { panel.raise(); if (box.isConnected) raise(box) }
 
   function start() {
     if (picking) return
@@ -104,12 +106,14 @@
     panel.setItems(items)
     panel.show()
     for (const [t, f] of LISTEN) window.addEventListener(t, f, true)
+    document.addEventListener('fullscreenchange', onFullscreen)
     tell(true)
   }
   function stop() {
     if (!picking) return
     picking = false
     for (const [t, f] of LISTEN) window.removeEventListener(t, f, true)
+    document.removeEventListener('fullscreenchange', onFullscreen)
     current = null; draw()
     panel.hide()
     tell(false)

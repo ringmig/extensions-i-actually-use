@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Four Panes",
-  "version": "2.5",
+  "version": "2.6",
   "description": "Four browser panes in a 2x2 split, in one fullscreen window",
   "permissions": [
     "storage",
