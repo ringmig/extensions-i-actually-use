@@ -73,6 +73,8 @@ const ALWAYS_EXCLUDED = [
   // Match patterns saknar portbegrepp, så detta täcker alla portar.
   "*://localhost/*",
   "*://127.0.0.1/*",
+  // Lokala filer är också egna sidor, och har ingen host att lägga i svartlistan.
+  "file:///*",
 ];
 
 function buildExcludeMatches(blacklist) {
