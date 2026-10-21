@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Copy Image URL",
-  "version": "1.2",
-  "description": "Right-click any image to copy its URL, bypassing right-click blocking",
+  "version": "1.3",
+  "description": "Right-click any image to copy it or its URL, bypassing right-click blocking",
   "permissions": [
     "contextMenus",
     "clipboardWrite",
