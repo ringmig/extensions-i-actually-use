@@ -195,18 +195,6 @@
   window.addEventListener('mousedown', captureRightClick, true);
   window.addEventListener('contextmenu', captureRightClick, true);
 
-  // A local page (file://) has origin null, so most image servers refuse its
-  // fetch and <a download> is ignored cross-origin. Such pages can ask us
-  // instead; the ack tells them not to fall back to opening a tab.
-  if (location.protocol === 'file:') {
-    window.addEventListener('message', (e) => {
-      const d = e.data;
-      if (e.source !== window || d?.type !== 'mdl-download' || typeof d.url !== 'string') return;
-      chrome.runtime.sendMessage({ action: 'downloadUrl', url: d.url, filename: d.filename });
-      window.postMessage({ type: 'mdl-download-ack', url: d.url }, '*');
-    });
-  }
-
   function findSvgElement(el) {
     if (!el) return null;
     // Walk up: did we click on an SVG child (path/g/text/etc.)?

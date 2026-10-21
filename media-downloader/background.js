@@ -564,15 +564,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ ok: true });
     return false;
   }
-  // Only local pages may ask, and only for web URLs: a site must not be able
-  // to make us download things by posting a message.
-  if (message.action === 'downloadUrl') {
-    if (sender.url?.startsWith('file:') && /^https?:/.test(message.url)) {
-      const name = /^[\w.-]+$/.test(message.filename || '') ? message.filename : undefined;
-      downloadFile(message.url, name);
-    }
-    return false;
-  }
   if (message.action === 'getHistory') {
     sendResponse({ history });
     return false;
