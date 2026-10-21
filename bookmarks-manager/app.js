@@ -9,7 +9,7 @@
 
   function removeChromeBanner() {
     for (const el of document.body.children) {
-      if (el.id !== 'app' && el.id !== 'context-menu' && el.id !== 'edit-dialog' && !el.matches('script, link')) {
+      if (el.id !== 'app' && el.id !== 'context-menu' && el.id !== 'edit-dialog' && el.id !== 'toast' && el.id !== 'bm-modal' && !el.matches('script, link')) {
         el.remove();
       }
     }
@@ -23,9 +23,11 @@
 
   let currentFolderId = '1'; // Bookmarks Bar
   let viewMode = localStorage.getItem('bm-view') || 'grid';
+  let sortAZ = localStorage.getItem('bm-sort') === 'az';
   let contextTarget = null;
   let editingNode = null;
   let dragTarget = null;
+  let renderedFolderId = null;
   let isCreatingFolder = false;
   let thumbnailCache = {}; // url -> dataUrl (in-memory for current render)
 
@@ -40,6 +42,7 @@
   const gridBtn = $('#grid-view');
   const compactBtn = $('#compact-view');
   const listBtn = $('#list-view');
+  const sortBtn = $('#sort-az');
   const contextMenu = $('#context-menu');
   const editDialog = $('#edit-dialog');
   const editHeading = $('#edit-heading');
@@ -90,6 +93,225 @@
     return d.innerHTML;
   }
 
+  function escapeAttr(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function sanitizeFolderName(name) {
+    const sanitized = (name || 'Bookmarks')
+      .replace(/[/\\:*?"<>|]/g, '_')
+      .trim()
+      .replace(/^\.+/, '');
+    return sanitized || 'Bookmarks';
+  }
+
+  let toastTimeout;
+  function showToast(message) {
+    const toast = $('#toast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.remove('hidden');
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => {
+      toast.classList.add('hidden');
+    }, 2400);
+  }
+
+  async function copyToClipboard(text, btn = null) {
+    let success = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        success = true;
+      }
+    } catch {
+      // Fallback below
+    }
+
+    if (!success) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        success = document.execCommand('copy');
+        ta.remove();
+      } catch {}
+    }
+
+    if (success) {
+      showToast('Copied URL to clipboard');
+      if (btn) {
+        setButtonCopiedState(btn);
+      }
+    } else {
+      showToast('Failed to copy URL');
+    }
+  }
+
+  function setButtonCopiedState(btn) {
+    btn.classList.add('copied');
+    btn.title = 'Copied!';
+    btn.setAttribute('aria-label', 'Copied!');
+    const copyIcon = btn.querySelector('.copy-icon');
+    const checkIcon = btn.querySelector('.check-icon');
+    if (copyIcon && checkIcon) {
+      copyIcon.classList.add('hidden');
+      checkIcon.classList.remove('hidden');
+    }
+    clearTimeout(btn._copiedTimeout);
+    btn._copiedTimeout = setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.title = 'Copy URL';
+      btn.setAttribute('aria-label', 'Copy URL');
+      if (copyIcon && checkIcon) {
+        copyIcon.classList.remove('hidden');
+        checkIcon.classList.add('hidden');
+      }
+    }, 1500);
+  }
+
+  function createCopyButton(url) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'copy-url-btn';
+    btn.title = 'Copy URL';
+    btn.setAttribute('aria-label', 'Copy URL');
+    btn.draggable = false;
+    btn.innerHTML = `${COPY_ICON_SVG}${CHECK_ICON_SVG}`;
+
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      copyToClipboard(url, btn);
+    });
+
+    btn.addEventListener('auxclick', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    btn.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+    });
+
+    return btn;
+  }
+
+  function generateBookmarksHtml(rootNode) {
+    const lines = [
+      '<!DOCTYPE NETSCAPE-Bookmark-file-1>',
+      '<!-- This is an automatically generated file.',
+      '     It will be read and overwritten.',
+      '     DO NOT EDIT! -->',
+      '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">',
+      `<TITLE>${escapeAttr(rootNode.title || 'Bookmarks')}</TITLE>`,
+      `<H1>${escapeAttr(rootNode.title || 'Bookmarks')}</H1>`,
+      '<DL><p>'
+    ];
+
+    function formatTimestamp(ms) {
+      return ms ? Math.floor(ms / 1000) : Math.floor(Date.now() / 1000);
+    }
+
+    function walk(node, indent) {
+      const spaces = ' '.repeat(indent);
+      if (node.url) {
+        const addDate = formatTimestamp(node.dateAdded);
+        const title = escapeAttr(node.title || node.url);
+        const url = escapeAttr(node.url);
+        lines.push(`${spaces}<DT><A HREF="${url}" ADD_DATE="${addDate}">${title}</A>`);
+      } else {
+        const addDate = formatTimestamp(node.dateAdded);
+        const modDate = formatTimestamp(node.dateGroupModified || node.dateAdded);
+        const title = escapeAttr(node.title || 'Folder');
+        lines.push(`${spaces}<DT><H3 ADD_DATE="${addDate}" LAST_MODIFIED="${modDate}">${title}</H3>`);
+        lines.push(`${spaces}<DL><p>`);
+        if (node.children && node.children.length > 0) {
+          for (const child of node.children) {
+            walk(child, indent + 4);
+          }
+        }
+        lines.push(`${spaces}</DL><p>`);
+      }
+    }
+
+    if (rootNode.id === '0') {
+      if (rootNode.children) {
+        for (const child of rootNode.children) {
+          walk(child, 4);
+        }
+      }
+    } else {
+      walk(rootNode, 4);
+    }
+
+    lines.push('</DL><p>');
+    return lines.join('\n');
+  }
+
+  async function exportBookmarks(node) {
+    try {
+      const folderId = node.id;
+      let title = node.title;
+
+      if (!title) {
+        if (folderId === '0') {
+          title = 'Bookmarks';
+        } else {
+          const fresh = await getNode(folderId).catch(() => null);
+          title = fresh?.title || 'Bookmarks';
+        }
+      }
+
+      const [tree] = await chrome.bookmarks.getSubTree(folderId);
+      if (!tree) {
+        showToast('Folder not found');
+        return;
+      }
+
+      if (!tree.title && title) {
+        tree.title = title;
+      }
+
+      const htmlContent = generateBookmarksHtml(tree);
+      const safeFolder = sanitizeFolderName(title);
+      const filename = `${safeFolder}/bookmarks.html`;
+
+      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+      const blobUrl = URL.createObjectURL(blob);
+
+      await new Promise((resolve, reject) => {
+        chrome.downloads.download({
+          url: blobUrl,
+          filename,
+          saveAs: false,
+          conflictAction: 'uniquify'
+        }, (downloadId) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve(downloadId);
+          }
+        });
+      });
+
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+      showToast(`Exported "${title}" to Downloads/${safeFolder}/`);
+    } catch (err) {
+      console.error('Export failed:', err);
+      showToast('Export failed: ' + (err.message || 'Unknown error'));
+    }
+  }
+
   // SVG icons (Lucide-style)
   const FOLDER_ICON_LG = `<svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z"/>
@@ -109,6 +331,15 @@
     <circle cx="12" cy="12" r="10"/>
     <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
     <path d="M2 12h20"/>
+  </svg>`;
+
+  const COPY_ICON_SVG = `<svg class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
+    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+  </svg>`;
+
+  const CHECK_ICON_SVG = `<svg class="check-icon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="20 6 9 17 4 12"/>
   </svg>`;
 
   // ═══════════════════════════════════
@@ -182,6 +413,10 @@
       e.preventDefault();
       navigateTo('0');
     });
+    home.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      showContextMenu(e, { id: '0', title: 'Bookmarks' });
+    });
     breadcrumbs.appendChild(home);
 
     for (const item of path) {
@@ -194,6 +429,10 @@
         const span = document.createElement('span');
         span.className = 'current';
         span.textContent = item.title;
+        span.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          showContextMenu(e, { id: item.id, title: item.title, isCurrentFolder: true });
+        });
         breadcrumbs.appendChild(span);
       } else {
         const link = document.createElement('a');
@@ -202,6 +441,10 @@
         link.addEventListener('click', (e) => {
           e.preventDefault();
           navigateTo(item.id);
+        });
+        link.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          showContextMenu(e, item);
         });
         breadcrumbs.appendChild(link);
       }
@@ -259,8 +502,7 @@
         const thumbName = node.title || getShortDomain(node.url);
         el.innerHTML = `
           <div class="thumb-info">
-            <img class="thumb-favicon" src="${getFaviconUrl(node.url)}" alt=""
-                 onerror="this.style.display='none'">
+            <img class="thumb-favicon" src="${getFaviconUrl(node.url)}" alt="">
             <div class="title">${escapeHtml(thumbName)}</div>
           </div>
         `;
@@ -279,6 +521,7 @@
 
       if (node.url) {
         el.dataset.url = node.url;
+        el.appendChild(createCopyButton(node.url));
       }
 
       el.addEventListener('click', (e) => {
@@ -336,6 +579,7 @@
 
       if (node.url) {
         el.dataset.url = node.url;
+        el.appendChild(createCopyButton(node.url));
       }
 
       el.addEventListener('click', (e) => {
@@ -370,9 +614,13 @@
   function render(items) {
     content.innerHTML = '';
 
-    const folders = items.filter((n) => !n.url).sort((a, b) => (a.title || '').localeCompare(b.title || ''));
-    const bookmarks = items.filter((n) => n.url).sort((a, b) => (a.title || '').localeCompare(b.title || ''));
-    const sorted = [...folders, ...bookmarks];
+    // Custom order is Chrome's own order, untouched, so a drop lands exactly where shown
+    // Sort by what the card shows: untitled bookmarks display their domain
+    const label = (n) => n.title || (n.url ? getShortDomain(n.url) : '');
+    const byTitle = (a, b) => label(a).localeCompare(label(b), 'sv', { sensitivity: 'base', numeric: true });
+    const sorted = sortAZ
+      ? [...items.filter((n) => !n.url).sort(byTitle), ...items.filter((n) => n.url).sort(byTitle)]
+      : items;
 
     if (sorted.length === 0) {
       content.className = '';
@@ -434,6 +682,8 @@
   // ═══════════════════════════════════
 
   async function navigateTo(folderId) {
+    // Re-rendering the same folder (a move, an edit) must not replay the entry fade
+    const refresh = folderId === renderedFolderId;
     currentFolderId = folderId;
     searchInput.value = '';
 
@@ -455,6 +705,8 @@
     const path = await getBreadcrumbPath(folderId);
     renderBreadcrumbs(path);
     render(children);
+    content.classList.toggle('no-anim', refresh);
+    renderedFolderId = folderId;
 
     // Thumbnails are manual-only — use right-click "Refresh Preview"
   }
@@ -481,6 +733,7 @@
 
       breadcrumbs.innerHTML = `<span class="current">Search: "${escapeHtml(query)}"</span>`;
       render(results);
+      renderedFolderId = null;
     }, 200);
   }
 
@@ -507,23 +760,59 @@
     contextTarget = node;
     contextMenu.classList.remove('hidden');
 
-    const x = Math.min(e.clientX, window.innerWidth - 200);
-    const y = Math.min(e.clientY, window.innerHeight - 180);
-    contextMenu.style.left = x + 'px';
-    contextMenu.style.top = y + 'px';
-
     const openBtn = contextMenu.querySelector('[data-action="open"]');
     const openTabBtn = contextMenu.querySelector('[data-action="open-tab"]');
+    const copyUrlBtn = contextMenu.querySelector('[data-action="copy-url"]');
+    const newFolderBtn = contextMenu.querySelector('[data-action="new-folder"]');
+    const exportBtn = contextMenu.querySelector('[data-action="export"]');
     const refreshBtn = contextMenu.querySelector('[data-action="refresh-thumb"]');
+    const editBtn = contextMenu.querySelector('[data-action="edit"]');
+    const moveUpBtn = contextMenu.querySelector('[data-action="move-up"]');
+    const deleteBtn = contextMenu.querySelector('[data-action="delete"]');
+    const separator = contextMenu.querySelector('.ctx-separator');
+
     if (!node.url) {
       openBtn.style.display = 'none';
+      if (copyUrlBtn) copyUrlBtn.style.display = 'none';
       refreshBtn.style.display = 'none';
-      openTabBtn.textContent = 'Open Folder';
+      if (exportBtn) exportBtn.style.display = '';
+
+      if (node.isCurrentFolder) {
+        openTabBtn.style.display = 'none';
+        if (newFolderBtn) newFolderBtn.style.display = '';
+        editBtn.style.display = 'none';
+        deleteBtn.style.display = 'none';
+        if (separator) separator.style.display = 'none';
+      } else {
+        openTabBtn.style.display = '';
+        openTabBtn.textContent = 'Open Folder';
+        if (newFolderBtn) newFolderBtn.style.display = 'none';
+        editBtn.style.display = '';
+        deleteBtn.style.display = '';
+        if (separator) separator.style.display = '';
+      }
     } else {
       openBtn.style.display = '';
-      refreshBtn.style.display = '';
+      openTabBtn.style.display = '';
       openTabBtn.textContent = 'Open in New Tab';
+      if (copyUrlBtn) copyUrlBtn.style.display = '';
+      if (newFolderBtn) newFolderBtn.style.display = 'none';
+      if (exportBtn) exportBtn.style.display = 'none';
+      refreshBtn.style.display = '';
+      editBtn.style.display = '';
+      deleteBtn.style.display = '';
+      if (separator) separator.style.display = '';
     }
+
+    // The root's direct children (Bar, Other, Mobile) have no folder above that can hold items
+    moveUpBtn.style.display = !node.isCurrentFolder && node.parentId && !isTopLevel(node.parentId) ? '' : 'none';
+
+    const menuWidth = contextMenu.offsetWidth || 180;
+    const menuHeight = contextMenu.offsetHeight || 220;
+    const x = Math.min(e.clientX, window.innerWidth - menuWidth - 10);
+    const y = Math.min(e.clientY, window.innerHeight - menuHeight - 10);
+    contextMenu.style.left = Math.max(10, x) + 'px';
+    contextMenu.style.top = Math.max(10, y) + 'px';
   }
 
   function hideContextMenu() {
@@ -547,8 +836,24 @@
           navigateTo(node.id);
         }
         break;
+      case 'copy-url':
+        if (node.url) {
+          copyToClipboard(node.url);
+        }
+        break;
+      case 'new-folder':
+        showCreateFolderDialog();
+        break;
+      case 'export':
+        exportBookmarks(node);
+        break;
       case 'edit':
-        showEditDialog(node);
+        // Bookmarks get the save modal, which can also change the folder
+        if (node.url) window.bmEditBookmark(node.id);
+        else showEditDialog(node);
+        break;
+      case 'move-up':
+        moveToGrandparent(node);
         break;
       case 'refresh-thumb':
         if (node.url) {
@@ -561,6 +866,20 @@
       case 'delete':
         deleteBookmark(node);
         break;
+    }
+  }
+
+  function isTopLevel(folderId) {
+    return folderId === '0' || folderId === '1' || folderId === '2' || folderId === '3';
+  }
+
+  // Lands right after the folder it came out of, so it is easy to find
+  async function moveToGrandparent(node) {
+    try {
+      const [parent] = await chrome.bookmarks.get(node.parentId);
+      await chrome.bookmarks.move(node.id, { parentId: parent.parentId, index: parent.index + 1 });
+    } catch (err) {
+      console.warn('Move failed:', err);
     }
   }
 
@@ -659,50 +978,68 @@
     el.addEventListener('dragend', () => {
       el.classList.remove('dragging');
       dragTarget = null;
-      for (const d of document.querySelectorAll('.drag-over, .drag-into')) {
-        d.classList.remove('drag-over', 'drag-into');
+      for (const d of document.querySelectorAll('.drop-before, .drop-after, .drag-into')) {
+        clearDrop(d);
       }
     });
 
     const isFolder = !node.url;
 
     el.addEventListener('dragover', (e) => {
+      if (!dragTarget || dragTarget.id === node.id) return;
+      const zone = dropZone(e, el, isFolder);
+      if (!zone) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-      if (dragTarget && dragTarget.id !== node.id) {
-        el.classList.add(isFolder ? 'drag-into' : 'drag-over');
-      }
+      clearDrop(el);
+      el.classList.add(zone === 'into' ? 'drag-into' : `drop-${zone}`);
     });
 
-    el.addEventListener('dragleave', () => {
-      el.classList.remove('drag-over', 'drag-into');
-    });
+    el.addEventListener('dragleave', () => clearDrop(el));
 
     el.addEventListener('drop', async (e) => {
       e.preventDefault();
-      el.classList.remove('drag-over', 'drag-into');
+      clearDrop(el);
 
       if (!dragTarget || dragTarget.id === node.id) return;
+      const zone = dropZone(e, el, isFolder);
 
       try {
-        if (isFolder) {
-          // Dropping onto a folder moves the item into it, not next to it.
+        if (zone === 'into') {
           // Chrome rejects moving a folder into its own descendant.
           await chrome.bookmarks.move(dragTarget.id, { parentId: node.id });
-        } else {
+        } else if (zone) {
+          // Index is a slot in the current list; Chrome compensates when moving down
+          // within the same parent.
           const children = await getChildren(currentFolderId);
           const targetIndex = children.findIndex((c) => c.id === node.id);
           if (targetIndex < 0) return;
           await chrome.bookmarks.move(dragTarget.id, {
             parentId: currentFolderId,
-            index: targetIndex,
+            index: zone === 'after' ? targetIndex + 1 : targetIndex,
           });
         }
-        navigateTo(currentFolderId);
+        // onMoved re-renders
       } catch (err) {
         console.warn('Move failed:', err);
       }
     });
+  }
+
+  function clearDrop(el) {
+    el.classList.remove('drop-before', 'drop-after', 'drag-into');
+  }
+
+  // Edges of a card mean "beside", the middle of a folder means "into".
+  // Search results have no single parent and A-Z ignores position, so only folder drops apply there.
+  function dropZone(e, el, isFolder) {
+    const r = el.getBoundingClientRect();
+    const t = viewMode === 'list'
+      ? (e.clientY - r.top) / r.height
+      : (e.clientX - r.left) / r.width;
+    if (isFolder && t > 0.25 && t < 0.75) return 'into';
+    if (sortAZ || searchInput.value.trim()) return isFolder ? 'into' : null;
+    return t < 0.5 ? 'before' : 'after';
   }
 
   // ═══════════════════════════════════
@@ -749,11 +1086,11 @@
       const liveDisplayName = cardTitle && cardTitle !== 'Untitled' ? cardTitle : getShortDomain(url);
       card.innerHTML = `
         <div class="thumb-info">
-          <img class="thumb-favicon" src="${faviconSrc}" alt=""
-               onerror="this.style.display='none'">
+          <img class="thumb-favicon" src="${faviconSrc}" alt="">
           <div class="title">${escapeHtml(liveDisplayName)}</div>
         </div>
       `;
+      card.appendChild(createCopyButton(url));
     }
   }
 
@@ -761,8 +1098,20 @@
   // Event Listeners
   // ═══════════════════════════════════
 
+  // CSP forbids inline onerror; error events don't bubble, so catch them in capture phase
+  document.addEventListener('error', (e) => {
+    if (e.target.classList?.contains('thumb-favicon')) e.target.style.display = 'none';
+  }, true);
+
   searchInput.addEventListener('input', (e) => handleSearch(e.target.value));
 
+  sortBtn.addEventListener('click', () => {
+    sortAZ = !sortAZ;
+    localStorage.setItem('bm-sort', sortAZ ? 'az' : 'custom');
+    sortBtn.classList.toggle('active', sortAZ);
+    if (searchInput.value.trim()) handleSearch(searchInput.value);
+    else navigateTo(currentFolderId);
+  });
   gridBtn.addEventListener('click', () => setView('grid'));
   compactBtn.addEventListener('click', () => setView('compact'));
   listBtn.addEventListener('click', () => setView('list'));
@@ -774,6 +1123,17 @@
 
   document.addEventListener('click', (e) => {
     if (!contextMenu.contains(e.target)) hideContextMenu();
+  });
+
+  content.addEventListener('contextmenu', async (e) => {
+    if (e.target.closest('.card, .list-item')) return;
+    e.preventDefault();
+    let title = 'Bookmarks';
+    if (currentFolderId !== '0') {
+      const node = await getNode(currentFolderId).catch(() => null);
+      title = node?.title || 'Bookmarks';
+    }
+    showContextMenu(e, { id: currentFolderId, title, isCurrentFolder: true });
   });
 
   $('#edit-cancel').addEventListener('click', hideEditDialog);
@@ -844,6 +1204,7 @@
   gridBtn.classList.toggle('active', viewMode === 'grid');
   compactBtn.classList.toggle('active', viewMode === 'compact');
   listBtn.classList.toggle('active', viewMode === 'list');
+  sortBtn.classList.toggle('active', sortAZ);
 
   navigateTo('1'); // Open Bookmarks Bar by default
 })();

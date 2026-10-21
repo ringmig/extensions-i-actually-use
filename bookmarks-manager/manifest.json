@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Bookmarks Manager",
-  "version": "1.3",
+  "version": "1.4",
   "description": "Minimalistic dark bookmarks manager with site previews",
   "icons": {
     "16": "chrome.svg",
@@ -12,7 +12,9 @@
   "permissions": [
     "bookmarks",
     "favicon",
-    "tabs"
+    "tabs",
+    "downloads",
+    "clipboardWrite"
   ],
   "host_permissions": [
     "<all_urls>"

@@ -207,7 +207,12 @@
 
   // ── Keystroke ──
 
+  // The new tab page loads this file too, to edit a bookmark by id; there
+  // Cmd/Ctrl+D would bookmark the extension's own page, so it stays Chrome's.
+  window.bmEditBookmark = (id) => { if (!host) open(id); };
+
   window.addEventListener('keydown', (e) => {
+    if (location.protocol === 'chrome-extension:') return;
     if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
     if ((e.key || '').toLowerCase() !== 'd') return;
     e.preventDefault();
@@ -217,12 +222,13 @@
 
   // ── Open / close ──
 
-  async function open() {
+  async function open(id) {
     let state;
     try {
       state = await chrome.runtime.sendMessage({
         type: 'bm-modal-state',
         url: location.href,
+        id,
       });
     } catch {
       return; // extension reloaded — let the next press try again
@@ -271,6 +277,7 @@
 
   function render(title) {
     host = document.createElement('div');
+    host.id = 'bm-modal';
     host.style.cssText = 'all: initial;';
     root = host.attachShadow({ mode: 'closed' });
 

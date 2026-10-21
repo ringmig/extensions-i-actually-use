@@ -39,14 +39,38 @@ async function getThumbnail(url) {
   });
 }
 
-async function saveThumbnail(url, dataUrl) {
+async function saveThumbnail(url, dataUrl, timestamp = Date.now()) {
   const db = await openDB();
   return new Promise((resolve) => {
     const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).put({ url, dataUrl, timestamp: Date.now() });
+    tx.objectStore(STORE).put({ url, dataUrl, timestamp, small: true });
     tx.oncomplete = () => resolve();
     tx.onerror = () => resolve();
   });
+}
+
+// A card is ~360px wide; a full Retina capture (2560px) made the new tab page
+// decode and downscale a dozen huge images while scrolling, which stuttered.
+const THUMB_WIDTH = 720;
+
+async function shrinkThumbnail(dataUrl) {
+  try {
+    const bitmap = await createImageBitmap(await (await fetch(dataUrl)).blob());
+    if (bitmap.width <= THUMB_WIDTH) return dataUrl;
+    const h = Math.round(bitmap.height * THUMB_WIDTH / bitmap.width);
+    const canvas = new OffscreenCanvas(THUMB_WIDTH, h);
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, THUMB_WIDTH, h);
+    const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    }
+    return 'data:image/jpeg;base64,' + btoa(bin);
+  } catch (e) {
+    console.warn('[BM] shrink failed:', e.message);
+    return dataUrl;
+  }
 }
 
 async function getAllThumbnails() {
@@ -98,7 +122,8 @@ async function processQueue() {
   const { url, bookmarkId } = queue.shift();
 
   try {
-    const dataUrl = await captureUrl(url);
+    const raw = await captureUrl(url);
+    const dataUrl = raw && await shrinkThumbnail(raw);
     if (dataUrl) {
       await saveThumbnail(url, dataUrl);
       // Notify new tab page
@@ -253,10 +278,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     (async () => {
       const [folders, hits, recent] = await Promise.all([
         folderList(),
-        chrome.bookmarks.search({ url: msg.url }),
+        msg.id ? chrome.bookmarks.get(msg.id) : chrome.bookmarks.search({ url: msg.url }),
         chrome.bookmarks.getRecent(200),
       ]);
-      const hit = hits.find((h) => h.url === msg.url) || null;
+      const hit = msg.id ? hits[0] : hits.find((h) => h.url === msg.url) || null;
       sendResponse({
         folders,
         recent: recentFolders(folders, recent),
@@ -313,6 +338,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       for (const url of msg.urls) {
         const thumb = await getThumbnail(url);
         if (thumb && (Date.now() - thumb.timestamp < THUMBNAIL_TTL)) {
+          // Captures from before THUMB_WIDTH existed are shrunk once, on first read
+          if (!thumb.small) {
+            thumb.dataUrl = await shrinkThumbnail(thumb.dataUrl);
+            await saveThumbnail(url, thumb.dataUrl, thumb.timestamp);
+          }
           results[url] = thumb.dataUrl;
         }
       }

@@ -24,6 +24,9 @@
         </svg>
       </button>
       <div class="view-toggle">
+        <button id="sort-az" class="sort-btn" title="Sort A-Z (off: your own order, drag to arrange)">A-Z</button>
+      </div>
+      <div class="view-toggle">
         <button id="grid-view" title="Grid view">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
             <rect x="0" y="0" width="8" height="8" rx="2"/>
@@ -66,12 +69,18 @@
     <main id="content"></main>
   </div>
 
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
   <!-- Custom Context Menu -->
   <div id="context-menu" class="context-menu hidden">
     <button data-action="open">Open</button>
     <button data-action="open-tab">Open in New Tab</button>
+    <button data-action="copy-url">Copy URL</button>
+    <button data-action="new-folder">New Folder</button>
+    <button data-action="export">Export Bookmarks</button>
     <div class="ctx-separator"></div>
     <button data-action="refresh-thumb">Refresh Preview</button>
+    <button data-action="move-up">Move to Parent Folder</button>
     <button data-action="edit">Edit</button>
     <button data-action="delete" class="danger">Delete</button>
   </div>
@@ -95,6 +104,7 @@
     </div>
   </div>
 
+  <script src="bookmark-modal.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
