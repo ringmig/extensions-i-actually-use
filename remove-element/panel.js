@@ -7,6 +7,8 @@ const ICON = {
   trash: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
   x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
   chevron: '<path d="m18 15-6-6-6 6"/>',
+  left: '<path d="m15 18-6-6 6-6"/>',
+  right: '<path d="m9 18 6-6-6-6"/>',
 }
 // Overlays live in the top layer as manual popovers, the only place above a
 // fullscreen element. Showing one again moves it to the top of that layer.
@@ -78,6 +80,7 @@ function createPanel({ host, onToggle, onDelete, onClose }) {
     <section class="panel collapsed" role="dialog" aria-label="Remove Element">
       <header><button class="toggle" aria-expanded="false" title="Visa listan"><h1>Remove Element</h1>
         <span class="host"></span><span class="badge"></span>${svg('chevron')}</button>
+        <button class="side"></button>
         <button class="close" aria-label="Stäng (Esc)" title="Stäng (Esc)">${svg('x')}</button></header>
       <div class="list-head"><span>Dolt här</span><span class="count"></span></div>
       <ul></ul>
@@ -85,6 +88,15 @@ function createPanel({ host, onToggle, onDelete, onClose }) {
   const $ = (s) => root.querySelector(s)
   $('.host').textContent = host
   $('.close').addEventListener('click', onClose)
+  // The panel stays put; this button moves it to the other bottom corner.
+  const setSide = (side) => {
+    el.dataset.side = side
+    const to = side === 'left' ? 'right' : 'left'
+    $('.side').innerHTML = svg(to)
+    $('.side').title = $('.side').ariaLabel = to === 'left' ? 'Flytta till vänster' : 'Flytta till höger'
+  }
+  setSide('right')
+  $('.side').addEventListener('click', () => setSide(el.dataset.side === 'left' ? 'right' : 'left'))
   // Starts folded to a single row so it covers as little of the page as possible.
   $('.toggle').addEventListener('click', () => {
     const open = $('.panel').classList.toggle('collapsed') === false
@@ -114,8 +126,6 @@ function createPanel({ host, onToggle, onDelete, onClose }) {
     raise() { if (el.isConnected) raise(el) },
     hide() { el.remove() },
     contains: (e) => e.composedPath().includes(el),
-    rect: () => el.getBoundingClientRect(),
-    flip() { el.dataset.side = el.dataset.side === 'left' ? 'right' : 'left' },
     setItems(items) {
       armed = null
       $('.count').textContent = items.length ? String(items.length) : ''
