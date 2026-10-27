@@ -71,6 +71,8 @@ li.shown .eye { color: var(--fg); }
 
 function createPanel({ host, onToggle, onDelete, onClose }) {
   const el = document.createElement('remove-element-panel')
+  // Inline !important beats any page rule on the host, e.g. Reddit-style `:not(:defined) { visibility: hidden }`.
+  el.style.cssText = 'display:block!important;visibility:visible!important;opacity:1!important'
   const root = el.attachShadow({ mode: 'open' })
   root.innerHTML = `<style>${PANEL_CSS}</style>
     <section class="panel collapsed" role="dialog" aria-label="Remove Element">
