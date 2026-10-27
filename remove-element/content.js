@@ -70,14 +70,20 @@
     const r = current.getBoundingClientRect()
     Object.assign(box.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' })
     if (!box.isConnected) raise(box)
-    // Keep the panel off the element being pointed at.
+    // Keep the panel off the element being pointed at, unless the pointer is near
+    // the panel: then it is on its way there and the panel must hold still.
     const p = panel.rect()
-    if (r.left < p.right && r.right > p.left && r.top < p.bottom && r.bottom > p.top && r.width < innerWidth * 0.6) panel.flip()
+    const approaching = pointer.x > p.left - NEAR && pointer.x < p.right + NEAR && pointer.y > p.top - NEAR && pointer.y < p.bottom + NEAR
+    if (!approaching && r.left < p.right && r.right > p.left && r.top < p.bottom && r.bottom > p.top && r.width < innerWidth * 0.6) panel.flip()
   }
+  // ponytail: fixed approach zone; a diagonal approach from far away can still trigger a flip.
+  const NEAR = 120
+  const pointer = { x: -1e4, y: -1e4 }
 
   const inPanel = (e) => panel.contains(e)
   const swallow = (e) => { if (!inPanel(e)) { e.preventDefault(); e.stopImmediatePropagation() } }
   const onMove = (e) => {
+    pointer.x = e.clientX; pointer.y = e.clientY
     if (inPanel(e)) { current = null; return draw() }
     const el = e.composedPath()[0]
     if (el !== current) { current = removable(el) ? el : null; draw() }
