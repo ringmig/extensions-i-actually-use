@@ -62,6 +62,8 @@ body.cm {
   font: inherit; cursor: pointer; white-space: nowrap;
 }
 .cm .btn:hover { background: #2a2a2a; color: #fff; }
+.cm .btn.primary { background: var(--text); border-color: var(--text); color: #000; font-weight: 600; padding: 0 20px; }
+.cm .btn.primary:hover { background: #fff; }
 .cm .btn.danger { color: var(--danger); }
 .cm .btn.danger.armed { background: var(--danger-solid); border-color: var(--danger-solid); color: #000; }
 .cm .field {
