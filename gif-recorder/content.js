@@ -1,7 +1,7 @@
 /**
  * GIF Recorder - Content Script
  * Strictly button-driven: Select → REC → STOP → Encode → Download
- * No keyboard shortcuts (Escape conflicts with fullscreen).
+ * Esc cancels. In fullscreen, Escape is keyboard-locked so it reaches us instead of exiting.
  */
 
 (() => {
@@ -147,6 +147,16 @@
   const mount = document.fullscreenElement || document.webkitFullscreenElement || document.documentElement;
   mount.append(overlay, selBox, hint, recPanel, stopBar, savingBadge);
 
+  // Fullscreen eats Esc before any listener sees it; a keyboard lock hands it to us
+  // (holding Esc still exits fullscreen).
+  if (document.fullscreenElement) navigator.keyboard?.lock?.(['Escape']).catch(() => {});
+  const onKey = (e) => {
+    if (e.key !== 'Escape' || state === 'encoding') return;
+    blockClick(e);
+    cleanup();
+  };
+  window.addEventListener('keydown', onKey, true);
+
   // ── Drag selection ──
 
   overlay.addEventListener('mousedown', (e) => {
@@ -205,11 +215,11 @@
     state = 'selected';
     hint.style.display = 'none';
 
-    sizeLabel.textContent = w + ' x ' + h +
-      (stopBarTop(selection) === null ? '  ·  stop via toolbar icon' : '');
-    const panelTop = y + h + 10;
+    // Same band the stop bar will use, so STOP lands exactly where REC was
+    const barTop = stopBarTop(selection);
+    sizeLabel.textContent = w + ' x ' + h + (barTop === null ? '  ·  stop via toolbar icon' : '');
     recPanel.style.left = x + 'px';
-    recPanel.style.top = (panelTop + 50 > window.innerHeight ? y - 46 : panelTop) + 'px';
+    recPanel.style.top = (barTop ?? y + h - 46) + 'px';
     recPanel.classList.add('grc-on');
   }
 
@@ -246,6 +256,7 @@
   async function startRecording() {
     state = 'recording';
     frames = [];
+    const recBtnRect = btnRec.getBoundingClientRect();
 
     // Remove ALL selection UI from DOM so tabCapture doesn't see it
     overlay.remove();
@@ -285,10 +296,16 @@
 
     // The stop bar is inside the captured tab, so it may only live outside the
     // crop rect. No room = no bar; toolbar icon and right-click still stop.
-    const barTop = stopBarTop(selection);
-    if (barTop !== null) {
-      stopBar.style.setProperty('top', barTop + 'px', 'important'); // beats the sheet's !important
+    if (stopBarTop(selection) !== null) {
+      // Inline !important beats the sheet's centered placement
+      stopBar.style.setProperty('transform', 'none', 'important');
+      stopBar.style.setProperty('left', '0px', 'important');
+      stopBar.style.setProperty('top', '0px', 'important');
       stopBar.classList.add('grc-on');
+      // Shift the bar so STOP sits exactly on REC's old spot: no mouse travel
+      const s = btnStop.getBoundingClientRect();
+      stopBar.style.setProperty('left', (recBtnRect.left - s.left) + 'px', 'important');
+      stopBar.style.setProperty('top', (recBtnRect.top - s.top) + 'px', 'important');
     }
     timer.textContent = '00:00';
 
@@ -330,6 +347,7 @@
       cleanup();
       return;
     }
+    if (state !== 'recording') { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; return; }
 
     videoEl = document.createElement('video');
     videoEl.srcObject = mediaStream;
@@ -338,6 +356,7 @@
     await new Promise(resolve => {
       videoEl.onloadedmetadata = () => videoEl.play().then(resolve);
     });
+    if (state !== 'recording' || !videoEl) return;
 
     // The stream is the whole viewport; crop the selection out of it.
     const scaleX = videoEl.videoWidth / window.innerWidth;
@@ -484,6 +503,10 @@
   }
 
   function cleanup() {
+    // Background still shows REC/badge until told otherwise
+    if (state === 'recording') chrome.runtime.sendMessage({ type: 'stop-recording' });
+    window.removeEventListener('keydown', onKey, true);
+    if (document.fullscreenElement) navigator.keyboard?.unlock?.();
     if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
     if (captureTimer) { clearInterval(captureTimer); captureTimer = null; }
     if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }

@@ -12,7 +12,7 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: 'gif-recorder',
     title: 'Record Area as GIF',
-    contexts: ['page']
+    contexts: ['all'] // fullscreen targets are usually video/canvas/image, not 'page'
   });
 });
 
