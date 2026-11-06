@@ -34,7 +34,7 @@ body.cm {
 
 .cm .list { list-style: none; margin: 0 0 48px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
 .cm .row {
-  display: grid; grid-template-columns: 88px minmax(0, 1fr) 180px 150px auto;
+  display: grid; grid-template-columns: 88px minmax(0, 1fr) 240px 150px auto;
   gap: 8px 24px; align-items: center; padding: 16px 20px;
 }
 .cm .row + .row { border-top: 1px solid var(--line); }
@@ -49,7 +49,7 @@ body.cm {
   overflow-wrap: anywhere;
 }
 .cm .path.none { font-family: inherit; font-size: 13px; }
-.cm .meta { display: grid; gap: 2px; font-variant-numeric: tabular-nums; }
+.cm .meta { display: grid; gap: 2px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .cm .dim { color: var(--dim); font-size: 13px; }
 
 .cm .chip {

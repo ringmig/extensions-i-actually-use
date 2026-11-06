@@ -77,7 +77,7 @@
       <li class="row ${r.status}" data-i="${i}">
         <div class="lead">${r.status === 'found' ? `<button class="btn primary" data-act="open" data-i="${i}">Open</button>` : ''}</div>
         <div class="name">
-          <div class="title"><strong>${esc(r.file)}</strong>${r.legacy ? '<span class="tag">Old format</span>' : ''}</div>
+          <div class="title"><strong>${esc(r.file.replace(/\.html?$/i, ''))}</strong>${r.legacy ? '<span class="tag">Old format</span>' : ''}</div>
           ${path}
         </div>
         <div class="meta">${contents}<span class="dim">${esc(when(r.opened))}</span></div>
