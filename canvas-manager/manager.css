@@ -30,7 +30,7 @@ body.cm {
 
 .cm .list { list-style: none; margin: 0 0 48px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
 .cm .row {
-  display: grid; grid-template-columns: minmax(0, 2.4fr) minmax(0, 1.2fr) auto auto;
+  display: grid; grid-template-columns: 88px minmax(0, 2.4fr) minmax(0, 1.2fr) auto auto;
   gap: 8px 20px; align-items: center; padding: 14px 16px;
 }
 .cm .row + .row { border-top: 1px solid var(--line); }
@@ -62,6 +62,7 @@ body.cm {
   font: inherit; cursor: pointer; white-space: nowrap;
 }
 .cm .btn:hover { background: #2a2a2a; color: #fff; }
+.cm .lead .btn { width: 100%; }
 .cm .btn.primary { background: var(--text); border-color: var(--text); color: #000; font-weight: 600; padding: 0 20px; }
 .cm .btn.primary:hover { background: #fff; }
 .cm .btn.danger { color: var(--danger); }
@@ -85,8 +86,8 @@ body.cm {
 
 @media (max-width: 760px) {
   .cm header, .cm main { padding-left: 16px; padding-right: 16px; }
-  .cm .row { grid-template-columns: minmax(0, 1fr) auto; }
-  .cm .meta { grid-column: 1; }
+  .cm .row { grid-template-columns: 88px minmax(0, 1fr); }
+  .cm .meta, .cm .status { grid-column: 2; }
   .cm .actions { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
   .cm .field { width: 100%; }
 }

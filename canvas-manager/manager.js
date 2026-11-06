@@ -77,8 +77,8 @@
         </div>
         <div class="meta">${contents}<br><span class="dim">${esc(when(r.opened))}</span></div>
         <div class="status">${status}</div>
+        <div class="lead">${r.status === 'found' ? `<button class="btn primary" data-act="open" data-i="${i}">Open</button>` : ''}</div>
         <div class="actions">
-          ${r.status === 'found' ? `<button class="btn primary" data-act="open" data-i="${i}">Open</button>` : ''}
           <button class="btn" data-act="rename" data-i="${i}">Rename</button>
           <button class="btn danger" data-act="delete" data-i="${i}">Delete</button>
         </div>
