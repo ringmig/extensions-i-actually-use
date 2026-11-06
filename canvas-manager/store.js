@@ -50,7 +50,9 @@ var store = (() => {
   // check for open tabs first.
   const remove = name => request(indexedDB.deleteDatabase(name));
 
-  async function rename(name, file) {
+  // A page cannot rename the file on disk, so the canvas assumes the file was
+  // (or will be) renamed in the same folder.
+  async function rename(name, file, path, opened) {
     const target = PREFIX + '@' + file;
     const source = await open(name);
     const state = await read(source, 'state');
@@ -58,7 +60,8 @@ var store = (() => {
     const db = await open(target);
     const tx = db.transaction('kv', 'readwrite');
     tx.objectStore('kv').put(state, 'state');
-    tx.objectStore('kv').delete('meta');
+    if (path) tx.objectStore('kv').put({ path: path.slice(0, path.lastIndexOf('/') + 1) + file, opened }, 'meta');
+    else tx.objectStore('kv').delete('meta');
     await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
     db.close();
     await remove(name);

@@ -134,7 +134,7 @@
     }
     const tab = await blockedBy(r.file, file);
     if (tab) return note.textContent = `Close the tab with ${tab} first.`;
-    await store.rename(r.db, file);
+    await store.rename(r.db, file, r.path, r.opened);
     load();
   }
 
