@@ -8,6 +8,8 @@
     ? 'Opened ' + new Date(t).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
     : 'Last opened not recorded';
   const count = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  // The viewer's source file in its repo; it is not meant to be used as a canvas
+  const MASTER = '/HTML Image Viewer/image-viewer.html';
   // Missing files first: they are what this page is for
   const RANK = { missing: 0, unknown: 1, found: 2 };
 
@@ -30,7 +32,8 @@
 
   async function load() {
     summary.textContent = 'Reading the canvases saved in Chrome';
-    rows = await store.list();
+    // Shown again if it ever holds images, so nothing sits hidden in storage
+    rows = (await store.list()).filter(r => !(r.path?.endsWith(MASTER) && r.images + r.videos === 0));
     const known = rows.filter(r => r.path);
     const found = await ask({ type: 'exists', paths: known.map(r => r.path) });
     known.forEach((r, i) => r.status = found[i] ? 'found' : 'missing');
