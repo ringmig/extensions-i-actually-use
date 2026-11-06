@@ -1,6 +1,6 @@
 // The canvases live in the IndexedDB of the file:// origin, which only a
-// file:// page can open. So the manager is drawn into a file:// tab (the
-// directory listing of /), and this worker does what that page may not:
+// file:// page can open. So the manager is a content script drawn over the
+// directory listing at MANAGER (see manifest), and this worker does what that page may not:
 // check whether a file exists and which files are open in tabs.
 const MANAGER = 'file:///?canvas-manager';
 
@@ -16,12 +16,6 @@ chrome.action.onClicked.addListener(async () => {
   } else {
     chrome.tabs.create({ url: MANAGER });
   }
-});
-
-chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
-  if (info.status !== 'complete' || !tab.url?.startsWith(MANAGER)) return;
-  chrome.scripting.insertCSS({ target: { tabId }, files: ['manager.css'] });
-  chrome.scripting.executeScript({ target: { tabId }, files: ['store.js', 'manager.js'] });
 });
 
 const fileUrl = path => 'file://' + path.split('/').map(encodeURIComponent).join('/');

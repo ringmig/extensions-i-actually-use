@@ -1,3 +1,6 @@
+/* Chrome's directory listing stays hidden until the manager replaces it */
+body:not(.cm) { visibility: hidden; }
+
 /* Same palette as HTML Image Viewer, which is dark only */
 :root {
   --bg: #0b0b0b;
