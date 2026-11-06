@@ -69,19 +69,16 @@
       missing: '<span class="chip bad">File missing</span>',
       unknown: '<span class="chip warn" title="Opened before the viewer started recording where it lives. Open the file once and it shows here.">Location unknown</span>',
     }[r.status];
-    const path = r.path
-      ? `<span class="path" title="${esc(r.path)}">${esc(r.path.replace(/^\/Users\/[^/]+/, '~'))}</span>`
-      : '<span class="path none">Open the file once to record where it lives</span>';
+    const where = r.path ? r.path.replace(/^\/Users\/[^/]+/, '~') : 'Location not recorded yet: open the file once';
     const contents = [count(r.images, 'image'), r.videos && count(r.videos, 'video'), size(r.bytes)].filter(Boolean).join(', ');
     return `
       <li class="row ${r.status}" data-i="${i}">
         <div class="lead">${r.status === 'found' ? `<button class="btn primary" data-act="open" data-i="${i}">Open</button>` : ''}</div>
-        <div class="name">
+        <div class="name" title="${esc(where)}">
           <div class="title"><strong>${esc(r.file.replace(/\.html?$/i, ''))}</strong>${r.legacy ? '<span class="tag">Old format</span>' : ''}</div>
-          ${path}
         </div>
-        <div class="meta">${contents}<span class="dim">${esc(when(r.opened))}</span></div>
         <div class="status">${status}</div>
+        <div class="meta">${contents}<span class="dim">${esc(when(r.opened))}</span></div>
         <div class="actions">
           <button class="btn" data-act="rename" data-i="${i}">Rename</button>
           <button class="btn danger" data-act="delete" data-i="${i}">Delete</button>
