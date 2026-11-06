@@ -28,6 +28,7 @@ body.cm {
   display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
   padding-top: 40px; padding-bottom: 20px;
 }
+.cm .head-actions { display: flex; gap: 8px; }
 .cm h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
 .cm .summary { margin: 4px 0 0; color: var(--dim); min-height: 1.45em; }
 

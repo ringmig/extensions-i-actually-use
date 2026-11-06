@@ -23,7 +23,10 @@
         <h1>Canvases</h1>
         <p class="summary" aria-live="polite"></p>
       </div>
-      <button class="btn" data-act="refresh">Refresh</button>
+      <div class="head-actions">
+        <button class="btn" data-act="copy-storage" title="Paste it in Finder with Cmd+Shift+G. Look, but do not delete files there: the canvases would break.">Copy storage path</button>
+        <button class="btn" data-act="refresh">Refresh</button>
+      </div>
     </header>
     <main></main>`;
   const main = document.querySelector('main');
@@ -141,12 +144,22 @@
     load();
   }
 
+  // Chrome does not tell an extension its profile folder; 'Default' is the
+  // first profile, others show theirs under Profile Path in chrome://version.
+  const STORAGE = '~/Library/Application Support/Google/Chrome/Default/IndexedDB/file__0.indexeddb.blob';
+  async function copyStorage(btn) {
+    await navigator.clipboard.writeText(STORAGE);
+    btn.textContent = 'Copied';
+    setTimeout(() => btn.textContent = 'Copy storage path', 2000);
+  }
+
   document.body.addEventListener('click', e => {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     const i = Number(btn.dataset.i);
     ({
       refresh: load,
+      'copy-storage': () => copyStorage(btn),
       open: () => ask({ type: 'open', path: rows[i].path }),
       delete: () => remove(btn, i),
       rename: () => startRename(i),
