@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Canvas Manager",
+  "version": "1.0",
+  "description": "Lists the canvases HTML Image Viewer has saved in Chrome, finds the ones whose file is gone, and deletes or renames them.",
+  "permissions": ["scripting", "tabs"],
+  "host_permissions": ["file:///*"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_title": "Canvas Manager" }
+}
