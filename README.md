@@ -17,6 +17,18 @@ To install them all, clone the repo (or **Code → Download ZIP**) and load each
 To update, download the zip again and unzip it over the old folder, or `git pull` in a clone. Then
 click the reload icon on the extension's card in `chrome://extensions`.
 
+## Other browsers
+
+Built for and tested in Google Chrome on macOS. Other Chromium browsers (Edge, Brave, Arc,
+Vivaldi, Opera) install extensions the same way and use the same extension APIs, so most of these
+should work there too, but they have not been tested. Two known exceptions:
+
+- **Media Downloader:** `setup.command` connects yt-dlp to Google Chrome only, so YouTube, Vimeo
+  and the other yt-dlp sites do not download in another browser. Instagram, TikTok and the rest
+  still do.
+- **Bookmarks Manager:** some browsers keep their own start page and do not let an extension
+  replace the new tab page.
+
 ## Extensions
 
 ### <img src="auto-hide-cursor/icons/icon128.png" width="28" height="28" align="top" alt=""> Auto Hide Cursor
