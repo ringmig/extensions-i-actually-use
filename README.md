@@ -5,53 +5,78 @@ and can be installed on its own.
 
 ## Installing
 
-No build step is needed.
+No build step is needed. To install one extension:
 
-1. Download or clone this repo.
+1. Click **Download** under the extension below, and unzip the file. You get one folder.
 2. Open `chrome://extensions` and turn on **Developer mode** (top right).
-3. Click **Load unpacked** and pick the folder of the extension you want.
+3. Click **Load unpacked** and pick that folder. Keep the folder where it is: Chrome loads the
+   extension from it every time it starts.
 
-To update an extension, pull the latest changes and click the reload icon on its card in `chrome://extensions`.
+To install them all, clone the repo (or **Code → Download ZIP**) and load each folder the same way.
+
+To update, download the zip again and unzip it over the old folder, or `git pull` in a clone. Then
+click the reload icon on the extension's card in `chrome://extensions`.
 
 ## Extensions
 
 ### <img src="auto-hide-cursor/icons/icon128.png" width="28" height="28" align="top" alt=""> Auto Hide Cursor
+**[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/auto-hide-cursor.zip)**
+
 Hides the mouse cursor after 3 seconds of inactivity.
 
 ### <img src="bookmarks-manager/icons/icon128.png" width="28" height="28" align="top" alt=""> Bookmarks Manager
+**[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/bookmarks-manager.zip)**
+
 Replaces the new tab page with a minimal dark bookmarks manager that shows site previews.
 
 ### <img src="copy-image-url/icon128.png" width="28" height="28" align="top" alt=""> Copy Image URL
+**[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/copy-image-url.zip)**
+
 Right-click any image to copy the image or its URL, even on sites that block right-clicking.
 
 ### <img src="four-panes/icons/icon128.png" width="28" height="28" align="top" alt=""> Four Panes
+**[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/four-panes.zip)**
+
 Opens four browser panes in a 2×2 grid in one fullscreen window.
 
 ### <img src="gif-recorder/icons/icon128.png" width="28" height="28" align="top" alt=""> GIF Recorder
+**[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/gif-recorder.zip)**
+
 Right-click to select any area of a page and record it as an animated GIF.
 
 ### <img src="history-blacklist/icons/icon128.png" width="28" height="28" align="top" alt=""> History Blacklist
+**[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/history-blacklist.zip)**
+
 Keeps the keywords and URLs you list out of your history and your address-bar suggestions.
 
 ### <img src="media-downloader/icons/icon128.png" width="28" height="28" align="top" alt=""> Media Downloader
+**[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/media-downloader.zip)**
+
 Right-click to download media from Instagram, TikTok, YouTube, X, Facebook and more. Right-click
 selected text to save it as a `.txt` file.
 
 YouTube, Vimeo and some other sites are downloaded through [yt-dlp](https://github.com/yt-dlp/yt-dlp),
 which runs on your own computer. **macOS only:** after loading the extension, double-click
 `media-downloader/setup.command` once. It downloads yt-dlp and ffmpeg and connects them to Chrome.
+If macOS says it cannot be opened, right-click it and choose **Open**.
 
 Instagram, TikTok and similar sites go through the third-party
 [btch-downloader](https://github.com/hostinger-bot/btch-downloader) service, so the URLs of those
 posts are sent to that service.
 
 ### <img src="remove-element/icons/icon128.png" width="28" height="28" align="top" alt=""> Remove Element
+**[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/remove-element.zip)**
+
 Point and click to remove things from a page. What you remove is remembered per site.
 
 ### <img src="shift-zoom/icons/icon128.png" width="28" height="28" align="top" alt=""> Shift Zoom
+**[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/shift-zoom.zip)**
+
 Hold Shift and scroll to zoom in on the cursor position. Cmd+click always opens links in a new tab.
 
 ### <img src="transcribe/icons/icon128.png" width="28" height="28" align="top" alt=""> Transcribe
+**[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/transcribe.zip)**
+
 Downloads the transcript of a YouTube video, a Short or a TikTok video in one click.
 
 ## License

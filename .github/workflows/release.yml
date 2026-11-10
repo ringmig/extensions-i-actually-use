@@ -1,0 +1,39 @@
+# Builds one zip per extension on every push to main and publishes them as the
+# "latest" release, so an extension can be downloaded on its own.
+name: Release zips
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: true
+
+jobs:
+  zips:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Zip each extension
+        run: |
+          mkdir dist
+          for manifest in */manifest.json; do
+            dir="${manifest%/manifest.json}"
+            zip -rq "dist/$dir.zip" "$dir" -x '*.DS_Store'
+          done
+          ls dist
+
+      - name: Replace the latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --cleanup-tag --yes || true
+          gh release create latest dist/*.zip --latest \
+            --title "Latest" \
+            --notes "Built from ${GITHUB_SHA::7}. Download the zip for one extension, unzip it, and load the folder with Load unpacked in chrome://extensions."
