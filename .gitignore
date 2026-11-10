@@ -18,3 +18,7 @@ ytdlp-host.log
 # Python bytecode; Chrome refuses to load an extension containing it
 __pycache__/
 *.pyc
+
+# Agent instructions are ours, not part of the extensions
+CLAUDE.md
+.claude/
