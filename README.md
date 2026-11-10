@@ -1,4 +1,4 @@
-# Chrome Extensions
+# Extensions I Actually Use
 
 A collection of small, independent Chrome extensions (Manifest V3). Each folder is one extension
 and can be installed on its own.
