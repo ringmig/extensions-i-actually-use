@@ -107,18 +107,17 @@ async function toPngDataUrl(url) {
 
 // ─── Dynamic content script registration ─────────────────────────────────────
 
-// Hosts that should never be unblocked regardless of user blacklist
+// Never unblocked, whatever the user's list says. unblock.js stops every
+// contextmenu event in the capture phase, which kills a page's own right-click
+// menu; sites built on one go in the user's list from the popup.
 const ALWAYS_EXCLUDED = [
   "*://remotedesktop.google.com/*",
   "*://drive.google.com/*",
-  // unblock.js stopImmediatePropagation:ar varje contextmenu i capture-fas, vilket
-  // (mindmap-canvasen, projekt-sidebaren, dashboardkorten, budgetcellerna).
-  // Devservrar: att avblockera högerklick på sin egen maskin fyller ingen funktion,
-  // men det bryter varje custom contextmenu man sitter och utvecklar.
-  // Match patterns saknar portbegrepp, så detta täcker alla portar.
+  // Dev servers: unblocking your own machine helps nothing and breaks the custom
+  // menu you are building. Match patterns have no port, so this covers them all.
   "*://localhost/*",
   "*://127.0.0.1/*",
-  // Lokala filer är också egna sidor, och har ingen host att lägga i svartlistan.
+  // Local files are your own pages too, and have no host to put in the list.
   "file:///*",
 ];
 
