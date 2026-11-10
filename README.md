@@ -21,12 +21,6 @@ Hides the mouse cursor after 3 seconds of inactivity.
 ### <img src="bookmarks-manager/chrome.svg" width="28" height="28" align="top" alt=""> Bookmarks Manager
 Replaces the new tab page with a minimal dark bookmarks manager that shows site previews.
 
-### <img src="canvas-manager/icons/icon128.png" width="28" height="28" align="top" alt=""> Canvas Manager
-Lists the canvases a local HTML image viewer has saved in Chrome, finds the ones whose file is
-gone, and deletes or renames them. It only works together with that viewer, so it is mostly useful
-as an example. After installing, open the extension's **Details** and turn on **Allow access to file
-URLs**. See [`canvas-manager/README.md`](canvas-manager/README.md).
-
 ### <img src="copy-image-url/icon128.png" width="28" height="28" align="top" alt=""> Copy Image URL
 Right-click any image to copy the image or its URL, even on sites that block right-clicking.
 
