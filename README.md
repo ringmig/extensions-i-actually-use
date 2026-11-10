@@ -9,8 +9,9 @@ No build step is needed. To install one extension:
 
 1. Click **Download** under the extension below, and unzip the file. You get one folder.
 2. Open `chrome://extensions` and turn on **Developer mode** (top right).
-3. Click **Load unpacked** and pick that folder. Keep the folder where it is: Chrome loads the
-   extension from it every time it starts.
+3. Click **Load unpacked** and pick that folder. Chrome loads the extension from that folder every
+   time it starts, so put it somewhere permanent first, not in Downloads. Deleting the folder
+   removes the extension; moving it means loading it again, and its settings start over.
 
 To install them all, clone the repo (or **Code → Download ZIP**) and load each folder the same way.
 
