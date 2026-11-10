@@ -287,19 +287,19 @@
     const backdrop = document.createElement('div');
     backdrop.className = 'backdrop';
     backdrop.innerHTML = `
-      <div class="dialog" role="dialog" aria-modal="true" aria-label="Bokmärke">
-        <h2>${existing ? 'Redigera bokmärke' : 'Nytt bokmärke'}</h2>
+      <div class="dialog" role="dialog" aria-modal="true" aria-label="Bookmark">
+        <h2>${existing ? 'Edit bookmark' : 'New bookmark'}</h2>
 
-        <label>Namn
+        <label>Name
           <input type="text" id="title" spellcheck="false">
         </label>
 
-        <label>Webbadress
+        <label>URL
           <input type="text" id="url" spellcheck="false">
         </label>
 
         <!-- A div, not a label: a label forwards every click inside it to the button -->
-        <div class="field">Mapp
+        <div class="field">Folder
           <div class="picker">
             <button type="button" class="picker-btn" id="picker"
                     aria-haspopup="listbox" aria-expanded="false">
@@ -310,8 +310,8 @@
               </svg>
             </button>
             <div class="pop" id="pop" hidden>
-              <input type="text" class="search" id="search" placeholder="Sök mapp"
-                     spellcheck="false" autocomplete="off" aria-label="Sök mapp">
+              <input type="text" class="search" id="search" placeholder="Search folders"
+                     spellcheck="false" autocomplete="off" aria-label="Search folders">
               <div class="trail" id="trail" hidden></div>
               <div class="list" id="list" role="listbox"></div>
               <div class="hint" id="hint"></div>
@@ -319,13 +319,13 @@
           </div>
         </div>
 
-        <div class="recent" id="recent" role="group" aria-label="Senaste mappar"></div>
+        <div class="recent" id="recent" role="group" aria-label="Recent folders"></div>
 
         <div class="actions">
-          ${existing ? '<button type="button" class="act danger" id="remove">Ta bort</button>' : ''}
+          ${existing ? '<button type="button" class="act danger" id="remove">Delete</button>' : ''}
           <span class="spacer"></span>
-          <button type="button" class="act ghost" id="cancel">Avbryt</button>
-          <button type="button" class="act primary" id="save">Spara</button>
+          <button type="button" class="act ghost" id="cancel">Cancel</button>
+          <button type="button" class="act primary" id="save">Save</button>
         </div>
       </div>
     `;
@@ -433,7 +433,7 @@
       crumb.textContent = sel.path.join(' › ') + ' › ';
       label.append(crumb);
     }
-    label.append(sel ? sel.label : 'Bokmärkesfältet');
+    label.append(sel ? sel.label : 'Bookmarks bar');
     renderChips();
   }
 
@@ -481,7 +481,7 @@
       if (trail.children.length) trail.append('›');
       trail.append(b);
     };
-    add('Alla', null);
+    add('All', null);
     for (const f of chain) add(f.label, f.id);
   }
 
@@ -489,8 +489,8 @@
     const browsing = !query.trim();
     renderTrail(browsing);
     root.getElementById('hint').textContent = browsing
-      ? '↑↓ flytta   → gå in   ← upp   Enter välj'
-      : '↑↓ flytta   Enter välj';
+      ? '↑↓ move   → open   ← back   Enter select'
+      : '↑↓ move   Enter select';
 
     rows = buildRows();
     active = Math.max(0, Math.min(active, rows.length - 1));
@@ -500,7 +500,7 @@
     if (!rows.length) {
       const empty = document.createElement('div');
       empty.className = 'empty';
-      empty.textContent = browsing ? 'Inga undermappar här' : `Ingen mapp matchar "${query.trim()}"`;
+      empty.textContent = browsing ? 'No subfolders here' : `No folder matches "${query.trim()}"`;
       list.append(empty);
       return;
     }
@@ -515,7 +515,7 @@
 
       const name = document.createElement('span');
       name.className = 'name';
-      const text = row.here ? `Spara i ${f.label}` : f.label;
+      const text = row.here ? `Save in ${f.label}` : f.label;
       const at = row.mark ? text.toLowerCase().indexOf(row.mark) : -1;
       if (at < 0) {
         name.textContent = text;
@@ -547,7 +547,7 @@
         b.type = 'button';
         b.tabIndex = -1;
         b.className = 'enter';
-        b.title = 'Visa undermappar';
+        b.title = 'Show subfolders';
         b.innerHTML = ENTER_ICON;
         b.addEventListener('click', (e) => { e.stopPropagation(); enterFolder(f); });
         el.append(b);
@@ -655,12 +655,12 @@
     if (!deleteArmed) {
       deleteArmed = true;
       btn.classList.add('armed');
-      btn.textContent = 'Säker?';
+      btn.textContent = 'Sure?';
       setTimeout(() => {
         if (!root) return;
         deleteArmed = false;
         btn.classList.remove('armed');
-        btn.textContent = 'Ta bort';
+        btn.textContent = 'Delete';
       }, 3000);
       return;
     }

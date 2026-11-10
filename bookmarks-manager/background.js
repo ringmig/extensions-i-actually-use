@@ -239,7 +239,7 @@ async function folderList() {
     for (const n of nodes) {
       if (n.url) continue;
       const isRoot = n.id === '0';
-      const label = n.title || 'Bokmärken';
+      const label = n.title || 'Bookmarks';
       if (!isRoot) {
         out.push({
           id: n.id, label, depth, parentId, path,
