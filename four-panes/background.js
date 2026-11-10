@@ -3,7 +3,7 @@
 const openGrid = () => chrome.windows.create({ url: 'grid.html', type: 'popup', state: 'fullscreen' })
 
 chrome.runtime.onInstalled.addListener(() =>
-  chrome.contextMenus.create({ id: 'open', title: 'Öppna Four Panes', contexts: ['page', 'frame', 'link', 'selection', 'image'] }))
+  chrome.contextMenus.create({ id: 'open', title: 'Open Four Panes', contexts: ['page', 'frame', 'link', 'selection', 'image'] }))
 
 chrome.action.onClicked.addListener(openGrid)
 chrome.contextMenus.onClicked.addListener(openGrid)

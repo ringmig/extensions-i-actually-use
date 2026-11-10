@@ -28,7 +28,7 @@
       "suggested_key": {
         "default": "Alt+Shift+X"
       },
-      "description": "Slå på eller av Remove Element"
+      "description": "Turn Remove Element on or off"
     }
   },
   "content_scripts": [

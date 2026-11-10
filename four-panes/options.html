@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="sv">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <title>Four Panes</title>
@@ -24,13 +24,13 @@
 <main>
   <h1>Four Panes</h1>
   <div class="grid">
-    <div><label for="p0">Uppe till vänster</label><input type="text" id="p0" spellcheck="false"></div>
-    <div><label for="p1">Uppe till höger</label><input type="text" id="p1" spellcheck="false"></div>
-    <div><label for="p2">Nere till vänster</label><input type="text" id="p2" spellcheck="false"></div>
-    <div><label for="p3">Nere till höger</label><input type="text" id="p3" spellcheck="false"></div>
+    <div><label for="p0">Top left</label><input type="text" id="p0" spellcheck="false"></div>
+    <div><label for="p1">Top right</label><input type="text" id="p1" spellcheck="false"></div>
+    <div><label for="p2">Bottom left</label><input type="text" id="p2" spellcheck="false"></div>
+    <div><label for="p3">Bottom right</label><input type="text" id="p3" spellcheck="false"></div>
   </div>
-  <div class="row"><input type="number" id="gap" min="0" max="50"><label for="gap">pixlar mellan rutorna</label></div>
-  <div class="row"><input type="color" id="color"><label for="color">färg på skiljelinjerna</label></div>
+  <div class="row"><input type="number" id="gap" min="0" max="50"><label for="gap">pixels between the panes</label></div>
+  <div class="row"><input type="color" id="color"><label for="color">color of the dividers</label></div>
   <div id="status" role="status"></div>
 </main>
 <script type="module" src="options.js"></script>

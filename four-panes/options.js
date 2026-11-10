@@ -19,7 +19,7 @@ async function save() {
   }
   await chrome.storage.sync.set(cfg)
   fill()
-  $('status').textContent = 'Sparat. Gäller nästa gång du öppnar rutorna.'
+  $('status').textContent = 'Saved. Takes effect the next time you open the panes.'
 }
 
 document.querySelectorAll('input').forEach((el) => el.addEventListener('change', save))

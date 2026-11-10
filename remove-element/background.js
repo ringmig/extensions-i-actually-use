@@ -15,7 +15,7 @@ chrome.contextMenus.onClicked.addListener(({ frameId }, tab) => pick(tab, frameI
 
 chrome.runtime.onMessage.addListener((msg, sender) => {
   if (typeof msg.picking === 'boolean' && sender.tab)
-    chrome.action.setBadgeText({ tabId: sender.tab.id, text: msg.picking ? 'PÅ' : '' })
+    chrome.action.setBadgeText({ tabId: sender.tab.id, text: msg.picking ? 'ON' : '' })
 })
 chrome.action.setBadgeBackgroundColor({ color: '#ff453a' })
 

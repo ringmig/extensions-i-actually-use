@@ -81,8 +81,8 @@ function createPanel({ host, onToggle, onDelete, onClose }) {
       <header><button class="toggle" aria-expanded="false" title="Visa listan"><h1>Remove Element</h1>
         <span class="host"></span><span class="badge"></span>${svg('chevron')}</button>
         <button class="side"></button>
-        <button class="close" aria-label="Stäng (Esc)" title="Stäng (Esc)">${svg('x')}</button></header>
-      <div class="list-head"><span>Dolt här</span><span class="count"></span></div>
+        <button class="close" aria-label="Close (Esc)" title="Close (Esc)">${svg('x')}</button></header>
+      <div class="list-head"><span>Hidden here</span><span class="count"></span></div>
       <ul></ul>
     </section>`
   const $ = (s) => root.querySelector(s)
@@ -93,7 +93,7 @@ function createPanel({ host, onToggle, onDelete, onClose }) {
     el.dataset.side = side
     const to = side === 'left' ? 'right' : 'left'
     $('.side').innerHTML = svg(to)
-    $('.side').title = $('.side').ariaLabel = to === 'left' ? 'Flytta till vänster' : 'Flytta till höger'
+    $('.side').title = $('.side').ariaLabel = to === 'left' ? 'Move to the left' : 'Move to the right'
   }
   setSide('right')
   $('.side').addEventListener('click', () => setSide(el.dataset.side === 'left' ? 'right' : 'left'))
@@ -101,7 +101,7 @@ function createPanel({ host, onToggle, onDelete, onClose }) {
   $('.toggle').addEventListener('click', () => {
     const open = $('.panel').classList.toggle('collapsed') === false
     $('.toggle').setAttribute('aria-expanded', open)
-    $('.toggle').title = open ? 'Dölj listan' : 'Visa listan'
+    $('.toggle').title = open ? 'Hide the list' : 'Show the list'
   })
 
   // Delete takes two clicks: the first arms the button, the second removes the item.
@@ -115,9 +115,9 @@ function createPanel({ host, onToggle, onDelete, onClose }) {
     if (armed) armed.classList.remove('armed')
     armed = btn
     btn.classList.add('armed')
-    btn.setAttribute('aria-label', 'Klicka igen för att ta bort från listan')
+    btn.setAttribute('aria-label', 'Click again to remove from the list')
     clearTimeout(disarm)
-    disarm = setTimeout(() => { btn.classList.remove('armed'); btn.setAttribute('aria-label', 'Ta bort från listan'); armed = null }, 2500)
+    disarm = setTimeout(() => { btn.classList.remove('armed'); btn.setAttribute('aria-label', 'Remove from the list'); armed = null }, 2500)
   })
 
   return {
@@ -131,17 +131,17 @@ function createPanel({ host, onToggle, onDelete, onClose }) {
       $('.count').textContent = items.length ? String(items.length) : ''
       $('.badge').textContent = items.length ? `${items.length} dolda` : ''
       const ul = $('ul')
-      if (!items.length) { ul.innerHTML = '<li class="empty">Klicka på något på sidan för att dölja det.</li>'; return }
+      if (!items.length) { ul.innerHTML = '<li class="empty">Click anything on the page to hide it.</li>'; return }
       ul.innerHTML = items.map((it, i) => `<li data-i="${i}" class="${it.shown ? 'shown' : ''}">
           <span class="label"></span>
           <button class="eye" aria-pressed="${it.shown}"></button>
-          <button class="del" aria-label="Ta bort från listan" title="Ta bort från listan">${svg('trash')}</button>
+          <button class="del" aria-label="Remove from the list" title="Remove from the list">${svg('trash')}</button>
         </li>`).join('')
       ul.querySelectorAll('li').forEach((li, i) => {
         const it = items[i], eye = li.querySelector('.eye'), label = li.querySelector('.label')
         label.textContent = label.title = it.label
         eye.innerHTML = svg(it.shown ? 'eye' : 'eyeOff')
-        eye.title = eye.ariaLabel = it.shown ? 'Dölj igen' : 'Visa'
+        eye.title = eye.ariaLabel = it.shown ? 'Hide again' : 'Show'
       })
     },
   }
