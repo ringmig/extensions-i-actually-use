@@ -3,6 +3,7 @@
   "name": "Canvas Manager",
   "version": "1.1",
   "description": "Lists the canvases HTML Image Viewer has saved in Chrome, finds the ones whose file is gone, and deletes or renames them.",
+  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
   "permissions": [
     "tabs"
   ],

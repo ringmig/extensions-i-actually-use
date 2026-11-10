@@ -15,31 +15,31 @@ To update an extension, pull the latest changes and click the reload icon on its
 
 ## Extensions
 
-### Auto Hide Cursor
+### <img src="auto-hide-cursor/icons/icon128.png" width="28" height="28" align="top" alt=""> Auto Hide Cursor
 Hides the mouse cursor after 3 seconds of inactivity.
 
-### Bookmarks Manager
+### <img src="bookmarks-manager/chrome.svg" width="28" height="28" align="top" alt=""> Bookmarks Manager
 Replaces the new tab page with a minimal dark bookmarks manager that shows site previews.
 
-### Canvas Manager
+### <img src="canvas-manager/icons/icon128.png" width="28" height="28" align="top" alt=""> Canvas Manager
 Lists the canvases a local HTML image viewer has saved in Chrome, finds the ones whose file is
 gone, and deletes or renames them. It only works together with that viewer, so it is mostly useful
 as an example. After installing, open the extension's **Details** and turn on **Allow access to file
 URLs**. See [`canvas-manager/README.md`](canvas-manager/README.md).
 
-### Copy Image URL
+### <img src="copy-image-url/icon128.png" width="28" height="28" align="top" alt=""> Copy Image URL
 Right-click any image to copy the image or its URL, even on sites that block right-clicking.
 
-### Four Panes
+### <img src="four-panes/icons/icon128.png" width="28" height="28" align="top" alt=""> Four Panes
 Opens four browser panes in a 2×2 grid in one fullscreen window.
 
-### GIF Recorder
+### <img src="gif-recorder/icons/icon128.png" width="28" height="28" align="top" alt=""> GIF Recorder
 Right-click to select any area of a page and record it as an animated GIF.
 
-### History Blacklist
+### <img src="history-blacklist/icons/icon128.png" width="28" height="28" align="top" alt=""> History Blacklist
 Keeps the keywords and URLs you list out of your history and your address-bar suggestions.
 
-### Media Downloader
+### <img src="media-downloader/icons/icon128.png" width="28" height="28" align="top" alt=""> Media Downloader
 Right-click to download media from Instagram, TikTok, YouTube, X, Facebook and more. Right-click
 selected text to save it as a `.txt` file.
 
@@ -51,13 +51,13 @@ Instagram, TikTok and similar sites go through the third-party
 [btch-downloader](https://github.com/hostinger-bot/btch-downloader) service, so the URLs of those
 posts are sent to that service.
 
-### Remove Element
+### <img src="remove-element/icons/icon128.png" width="28" height="28" align="top" alt=""> Remove Element
 Point and click to remove things from a page. What you remove is remembered per site.
 
-### Shift Zoom
+### <img src="shift-zoom/icons/icon128.png" width="28" height="28" align="top" alt=""> Shift Zoom
 Hold Shift and scroll to zoom in on the cursor position. Cmd+click always opens links in a new tab.
 
-### Transcribe
+### <img src="transcribe/icons/icon128.png" width="28" height="28" align="top" alt=""> Transcribe
 Downloads the transcript of a YouTube video, a Short or a TikTok video in one click.
 
 ## License
