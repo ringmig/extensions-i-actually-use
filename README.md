@@ -18,7 +18,7 @@ To update an extension, pull the latest changes and click the reload icon on its
 ### <img src="auto-hide-cursor/icons/icon128.png" width="28" height="28" align="top" alt=""> Auto Hide Cursor
 Hides the mouse cursor after 3 seconds of inactivity.
 
-### <img src="bookmarks-manager/chrome.svg" width="28" height="28" align="top" alt=""> Bookmarks Manager
+### <img src="bookmarks-manager/icons/icon128.png" width="28" height="28" align="top" alt=""> Bookmarks Manager
 Replaces the new tab page with a minimal dark bookmarks manager that shows site previews.
 
 ### <img src="copy-image-url/icon128.png" width="28" height="28" align="top" alt=""> Copy Image URL

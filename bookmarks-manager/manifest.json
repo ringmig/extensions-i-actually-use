@@ -4,10 +4,9 @@
   "version": "1.4",
   "description": "Minimalistic dark bookmarks manager with site previews",
   "icons": {
-    "16": "chrome.svg",
-    "32": "chrome.svg",
-    "48": "chrome.svg",
-    "128": "chrome.svg"
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
   },
   "permissions": [
     "bookmarks",
