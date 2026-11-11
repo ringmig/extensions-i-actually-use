@@ -42,7 +42,7 @@ Hides the mouse cursor after 3 seconds of inactivity.
 
 Replaces the new tab page with a minimal dark bookmarks manager that shows site previews.
 
-### <img src="copy-image-url/icon128.png" width="28" height="28" align="top" alt=""> Copy Image URL
+### <img src="copy-image-url/icon128.png" width="28" height="28" align="top" alt=""> Copy Any Image
 **[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/copy-image-url.zip)**
 
 Right-click any image to copy the image or its URL, even on sites that block right-clicking.
@@ -57,7 +57,7 @@ Opens four browser panes in a 2×2 grid in one fullscreen window.
 
 Right-click to select any area of a page and record it as an animated GIF.
 
-### <img src="history-blacklist/icons/icon128.png" width="28" height="28" align="top" alt=""> History Blacklist
+### <img src="history-blacklist/icons/icon128.png" width="28" height="28" align="top" alt=""> Unhistory
 **[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/history-blacklist.zip)**
 
 Keeps the keywords and URLs you list out of your history and your address-bar suggestions.

@@ -1,5 +1,5 @@
 // ============================================================
-//  History Blacklist - Popup UI
+//  Unhistory - Popup UI
 // ============================================================
 
 const ruleType = document.getElementById("ruleType");

@@ -1,5 +1,5 @@
 // ============================================================
-//  History Blacklist - Background Service Worker
+//  Unhistory - Background Service Worker
 //  Monitors navigation and removes matching URLs from history
 // ============================================================
 

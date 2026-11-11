@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "History Blacklist",
+  "name": "Unhistory",
   "version": "1.0",
   "description": "Blacklist keywords/URLs to prevent them from appearing in history and URL bar suggestions",
   "permissions": [
