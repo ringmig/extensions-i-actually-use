@@ -42,11 +42,6 @@ Hides the mouse cursor after 3 seconds of inactivity.
 
 Replaces the new tab page with a minimal dark bookmarks manager that shows site previews.
 
-### <img src="copy-image-url/icon128.png" width="28" height="28" align="top" alt=""> Copy Any Image
-**[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/copy-image-url.zip)**
-
-Right-click any image to copy the image or its URL, even on sites that block right-clicking.
-
 ### <img src="four-panes/icons/icon128.png" width="28" height="28" align="top" alt=""> Four Panes
 **[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/four-panes.zip)**
 
@@ -76,6 +71,12 @@ posts are sent to that service.
 **[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/remove-element.zip)**
 
 Point and click to remove things from a page. What you remove is remembered per site.
+
+### <img src="copy-image-url/icon128.png" width="28" height="28" align="top" alt=""> Right-Click Rescue
+**[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/copy-image-url.zip)**
+
+Gives you back right-click and text selection on sites that block them. Adds Copy Image, Copy Image
+URL and Open Image in New Tab to the menu, which find the image even under a transparent overlay.
 
 ### <img src="shift-zoom/icons/icon128.png" width="28" height="28" align="top" alt=""> Shift Zoom
 **[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/shift-zoom.zip)**
