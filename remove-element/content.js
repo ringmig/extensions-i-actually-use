@@ -6,6 +6,8 @@
   const isPane = window.parent === window.top && !!location.ancestorOrigins?.[0]?.startsWith('chrome-extension://')
   // Bundled into Four Panes, this copy only serves the panes; the standalone extension has every other tab.
   if (chrome.runtime.getManifest().name !== 'Remove Element' && !isPane) return
+  // An SVG or XML file opened on its own is no HTML document: its elements have no style to set.
+  if (!(document instanceof HTMLDocument)) return
   const top = window === window.top || isPane
   const host = location.hostname || location.href
   const tell = (picking) => chrome.runtime.sendMessage({ picking }).catch(() => {})
