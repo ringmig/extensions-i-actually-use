@@ -91,7 +91,7 @@ Downloads the transcript of a YouTube video, a Short or a TikTok video in one cl
 ### <img src="history-blacklist/icons/icon128.png" width="28" height="28" align="top" alt=""> Unhistory
 **[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/history-blacklist.zip)**
 
-Keeps the keywords and URLs you list out of your history and your address-bar suggestions.
+Keeps the keywords and URLs you list out of your browser history and your address-bar suggestions.
 
 ## License
 

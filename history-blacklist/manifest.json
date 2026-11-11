@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Unhistory",
   "version": "1.0",
-  "description": "Blacklist keywords/URLs to prevent them from appearing in history and URL bar suggestions",
+  "description": "Keeps the keywords and URLs you list out of your browser history and address-bar suggestions.",
   "permissions": [
     "history",
     "webNavigation",
