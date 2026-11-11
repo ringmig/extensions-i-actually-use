@@ -57,11 +57,6 @@ Opens four browser panes in a 2×2 grid in one fullscreen window.
 
 Right-click to select any area of a page and record it as an animated GIF.
 
-### <img src="history-blacklist/icons/icon128.png" width="28" height="28" align="top" alt=""> Unhistory
-**[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/history-blacklist.zip)**
-
-Keeps the keywords and URLs you list out of your history and your address-bar suggestions.
-
 ### <img src="media-downloader/icons/icon128.png" width="28" height="28" align="top" alt=""> Media Downloader
 **[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/media-downloader.zip)**
 
@@ -91,6 +86,11 @@ Hold Shift and scroll to zoom in on the cursor position. Cmd+click always opens 
 **[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/transcribe.zip)**
 
 Downloads the transcript of a YouTube video, a Short or a TikTok video in one click.
+
+### <img src="history-blacklist/icons/icon128.png" width="28" height="28" align="top" alt=""> Unhistory
+**[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/history-blacklist.zip)**
+
+Keeps the keywords and URLs you list out of your history and your address-bar suggestions.
 
 ## License
 
