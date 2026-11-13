@@ -49,6 +49,17 @@ def get_downloads_dir():
     return dl_dir
 
 
+def story_dir(url):
+    """Stories land in the Downloads folder itself; a whole reel gets its own
+    folder there, named <account>_story_<when it was downloaded>."""
+    downloads = os.path.expanduser('~/Downloads')
+    m = re.search(r'/stories/([^/?#]+)/(\d+)?', url)
+    if not m or m.group(2):
+        return downloads
+    from datetime import datetime
+    return os.path.join(downloads, f'{m.group(1)}_story_{datetime.now():%Y-%m-%d_%H.%M.%S}')
+
+
 def self_update(tool='yt-dlp'):
     """True if a newer release of tool was installed into bin/."""
     script = os.path.join(os.path.dirname(BIN_DIR), f'fetch-{tool}.sh')
@@ -67,7 +78,9 @@ def run_gallerydl(url, download_dir, retried=False):
         'gallery-dl',
         '--cookies-from-browser', 'chrome',
         '-D', download_dir,
-        '-f', '{username}_{media_id}.{extension}',
+        # Inside a reel's folder the date prefix keeps Finder in story order.
+        '-f', ('{username}_{media_id}.{extension}' if download_dir == os.path.expanduser('~/Downloads')
+               else '{date:%Y-%m-%d_%H.%M.%S}_{media_id}.{extension}'),
         # Instagram's DASH streams are VP9, which Quick Look and Finder
         # thumbnails cannot decode; the direct mp4 is H.264 with sound (720p).
         '-o', 'videos=merged',
@@ -87,7 +100,8 @@ def run_gallerydl(url, download_dir, retried=False):
     # stdout lists one path per file; "# " marks one that was already there.
     files = [l.lstrip('# ').strip() for l in proc.stdout.splitlines() if l.strip()]
     if proc.returncode == 0 and files:
-        name = os.path.basename(files[0]) if len(files) == 1 else f'{len(files)} files'
+        name = (os.path.basename(files[0]) if len(files) == 1
+                else f'{os.path.basename(download_dir)} ({len(files)} files)')
         send_message({'status': 'done', 'filename': name})
     elif not retried and self_update('gallery-dl'):
         run_gallerydl(url, download_dir, retried=True)
@@ -223,7 +237,7 @@ def main():
         download_dir = msg.get('downloadDir', get_downloads_dir())
         send_message({'status': 'started'})
         if re.search(r'instagram\.com/stories/', url):
-            run_gallerydl(url, download_dir)
+            run_gallerydl(url, story_dir(url))
         else:
             run_ytdlp(url, download_dir)
     except Exception as e:
