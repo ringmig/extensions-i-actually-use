@@ -87,7 +87,8 @@ def run_gallerydl(url, download_dir, retried=False):
     # stdout lists one path per file; "# " marks one that was already there.
     files = [l.lstrip('# ').strip() for l in proc.stdout.splitlines() if l.strip()]
     if proc.returncode == 0 and files:
-        send_message({'status': 'done', 'filename': os.path.basename(files[-1])})
+        name = os.path.basename(files[0]) if len(files) == 1 else f'{len(files)} files'
+        send_message({'status': 'done', 'filename': name})
     elif not retried and self_update('gallery-dl'):
         run_gallerydl(url, download_dir, retried=True)
     else:

@@ -346,8 +346,101 @@
     return Object.values(byKey).map(v => v.url);
   }
 
+  /* ---------- Story scope modal ---------- */
+  // One story or the user's whole reel. Shadow DOM keeps Instagram's CSS out
+  // and lets :hover/:focus-visible work, which inline styles cannot.
+  const STORY_MODAL_CSS = `
+    :host { all: initial; }
+    .backdrop {
+      position: fixed; inset: 0; z-index: 2147483647;
+      display: grid; place-items: center; padding: 16px;
+      background: rgba(0, 0, 0, 0.45);
+      font-family: -apple-system, system-ui, sans-serif;
+      opacity: 0; transition: opacity 0.2s ease;
+    }
+    .card {
+      width: min(300px, 100%); box-sizing: border-box;
+      padding: 18px; border-radius: 14px;
+      background: rgba(20, 20, 20, 0.92);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      color: #e8e8e8; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+      transform: scale(0.96); transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .open { opacity: 1; }
+    .open .card { transform: none; }
+    h2 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.3; }
+    p {
+      margin: 2px 0 16px; font-size: 13px; color: #888;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    button {
+      display: block; width: 100%; min-height: 44px; box-sizing: border-box;
+      margin: 0; padding: 0 14px; border: 0; border-radius: 10px;
+      font: 500 14px/1 -apple-system, system-ui, sans-serif; cursor: pointer;
+      color: #e8e8e8; background: rgba(255, 255, 255, 0.08);
+    }
+    button + button { margin-top: 8px; }
+    button:hover { background: rgba(255, 255, 255, 0.14); }
+    button.primary { background: #4A90D9; color: #fff; }
+    button.primary:hover { background: #5B9DE2; }
+    button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+    @media (prefers-reduced-motion: reduce) {
+      .backdrop, .card { transition: none; }
+      .card { transform: none; }
+    }
+  `;
+
+  function askStoryScope({ user, one, all }) {
+    document.getElementById('__mdl-story-modal')?.remove();
+    const host = document.createElement('div');
+    host.id = '__mdl-story-modal';
+    const root = host.attachShadow({ mode: 'closed' });
+    root.innerHTML = `
+      <style>${STORY_MODAL_CSS}</style>
+      <div class="backdrop">
+        <div class="card" role="dialog" aria-modal="true" aria-labelledby="t">
+          <h2 id="t">Download story</h2>
+          <p></p>
+          <button class="primary" data-url="one">This story</button>
+          <button data-url="all">All stories</button>
+        </div>
+      </div>`;
+    root.querySelector('p').textContent = '@' + user;
+    const backdrop = root.querySelector('.backdrop');
+    const buttons = [...root.querySelectorAll('button')];
+    const previousFocus = document.activeElement;
+
+    const close = (url) => {
+      host.remove();
+      previousFocus?.focus?.();
+      if (url) chrome.runtime.sendMessage({ action: 'story-download', url });
+    };
+    for (const b of buttons) {
+      b.addEventListener('click', () => close(b.dataset.url === 'one' ? one : all));
+    }
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(null); });
+    // Instagram binds keys to the story player; keep them inside the dialog.
+    host.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Escape') { e.preventDefault(); close(null); }
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const i = buttons.indexOf(root.activeElement);
+        buttons[(i + (e.shiftKey ? -1 : 1) + buttons.length) % buttons.length].focus();
+      }
+    });
+
+    document.documentElement.appendChild(host);
+    buttons[0].focus();
+    requestAnimationFrame(() => requestAnimationFrame(() => backdrop.classList.add('open')));
+  }
+
   // Listen for messages from background
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg.type === 'ask-story-scope') {
+      askStoryScope(msg);
+      return false;
+    }
     if (msg.type === 'scrape-tiktok-images') {
       sendResponse({ images: scrapeTikTokImages() });
       return false;

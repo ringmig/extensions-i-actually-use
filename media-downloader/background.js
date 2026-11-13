@@ -220,6 +220,20 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     }
   }
 
+  // An Instagram story: btch-downloader answers with the user's whole reel
+  // (38 files for one right-click), gallery-dl with exactly what the URL
+  // names. Let the user pick; the content script replies with 'story-download'.
+  const story = parseStoryUrl(tab?.url || info.pageUrl || '');
+  if (story) {
+    if (!story.one) { downloadWithYtdlp(story.all); return; }
+    try {
+      await chrome.tabs.sendMessage(activeTabId, { type: 'ask-story-scope', ...story });
+    } catch {
+      downloadWithYtdlp(story.one); // no content script to ask: the narrow choice
+    }
+    return;
+  }
+
   // Instagram-specific: Chrome's context-menu info is unreliable on Instagram —
   // feed images often expose only the page URL (https://www.instagram.com/),
   // which makes btch-downloader and yt-dlp both fail. Ask the content script
@@ -541,6 +555,13 @@ chrome.downloads.onChanged.addListener((delta) => {
 /* ---------- Popup Communication ---------- */
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'story-download') {
+    // Only ever a story URL: the page could send anything here.
+    if (!parseStoryUrl(message.url)) return;
+    activeTabId = sender.tab?.id ?? activeTabId;
+    downloadWithYtdlp(message.url);
+    return;
+  }
   if (message.action === 'cancel') {
     const id = message.id;
     // Cancel yt-dlp
@@ -663,6 +684,17 @@ function isInstagramCdnImage(url) {
   } catch {
     return false;
   }
+}
+
+// Story viewer: /stories/<user>/<mediaId>/. A highlight (/stories/highlights/<id>/)
+// names the album, not the item playing, so it is left to the normal path.
+function parseStoryUrl(url) {
+  if (!isInstagramUrl(url)) return null;
+  const u = new URL(url);
+  const m = u.pathname.match(/^\/stories\/([^/]+)\/(?:(\d+)\/?)?$/);
+  if (!m || m[1] === 'highlights') return null;
+  const all = `https://www.instagram.com/stories/${m[1]}/`;
+  return { user: m[1], all, one: m[2] ? `${all}${m[2]}/` : null };
 }
 
 function isSupportedUrl(url) {

@@ -88,3 +88,16 @@ assert.strictEqual(sandbox.safeRelPath('chrome-downloads/internal docs./a.jpg'),
 assert.strictEqual(sandbox.safeRelPath('chrome-downloads//a.jpg'), 'chrome-downloads/a.jpg');
 
 console.log('ok');
+
+// Story URLs: the playing item, the whole reel, and the cases left alone
+const story = (u) => { const s = sandbox.parseStoryUrl(u); return s && { ...s }; };
+assert.deepStrictEqual(story('https://www.instagram.com/stories/sky_tv/4029030335806227282/'), {
+  user: 'sky_tv',
+  all: 'https://www.instagram.com/stories/sky_tv/',
+  one: 'https://www.instagram.com/stories/sky_tv/4029030335806227282/',
+});
+assert.strictEqual(story('https://www.instagram.com/stories/sky_tv/').one, null);
+assert.strictEqual(story('https://www.instagram.com/stories/highlights/1790123/'), null);
+assert.strictEqual(story('https://www.instagram.com/p/Dfp_czlAAvg/'), null);
+assert.strictEqual(story('https://evil.example/stories/sky_tv/1/'), null);
+assert.strictEqual(story('not a url'), null);
