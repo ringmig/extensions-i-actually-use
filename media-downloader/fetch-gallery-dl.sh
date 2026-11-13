@@ -3,9 +3,8 @@
 # newer was installed, 1 = already current or the fetch failed.
 #
 # gallery-dl is used for Instagram stories, where yt-dlp's API call is rejected.
-# It needs the yt-dlp Python module for DASH video (without it, stories come out
-# without sound), and that module needs Python 3.10+, which macOS does not ship.
-# So uv is fetched into bin/ and brings its own Python.
+# uv is fetched into bin/ and brings its own Python, so this does not depend on
+# Apple's Python 3.9 with its old pip and LibreSSL.
 BIN_DIR="${1:-$HOME/.local/share/media-downloader/bin}"
 UV="$BIN_DIR/uv"
 VENV="$BIN_DIR/gallery-dl-venv"
@@ -26,7 +25,7 @@ if [ ! -x "$VENV/bin/python" ]; then
 fi
 
 before="$("$UV" pip freeze -q --python "$VENV" 2>/dev/null)"
-"$UV" pip install -q --python "$VENV" -U gallery-dl yt-dlp || exit 1
+"$UV" pip install -q --python "$VENV" -U gallery-dl || exit 1
 # Anything a process started by Chrome writes is quarantined (see fetch-yt-dlp.sh).
 xattr -dr com.apple.quarantine "$VENV" 2>/dev/null
 ln -sf "gallery-dl-venv/bin/gallery-dl" "$BIN_DIR/gallery-dl"

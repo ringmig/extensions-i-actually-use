@@ -68,6 +68,9 @@ def run_gallerydl(url, download_dir, retried=False):
         '--cookies-from-browser', 'chrome',
         '-D', download_dir,
         '-f', '{username}_{media_id}.{extension}',
+        # Instagram's DASH streams are VP9, which Quick Look and Finder
+        # thumbnails cannot decode; the direct mp4 is H.264 with sound (720p).
+        '-o', 'videos=merged',
         url,
     ]
     try:
