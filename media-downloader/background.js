@@ -9,7 +9,6 @@ const DEBUG = false;
 const dbg = (...args) => { if (DEBUG) console.log(...args); };
 
 
-const DOWNLOAD_SUBFOLDER = 'chrome-downloads';
 
 const SUPPORTED_DOMAINS = [
   'instagram.com', 'tiktok.com', 'youtube.com', 'youtu.be',
@@ -736,7 +735,7 @@ function isDirectMediaUrl(url) {
 function makeFolderName(data, sourceUrl) {
   // sanitizePath drops everything non-ASCII, so an emoji/CJK-only caption
   // yields '' — fall through to the URL instead of returning an empty folder
-  // (which made every file land loose in chrome-downloads/).
+  // (which made every file land loose in Downloads).
   const title = data?.title || data?.title_audio || data?.result?.title;
   const fromTitle = title ? sanitizePath(title).replace(/\s+/g, '_') : '';
   if (fromTitle) return fromTitle;
@@ -933,7 +932,7 @@ function safeRelPath(path) {
    Any other extension with a downloads.onDeterminingFilename listener gets to
    name EVERY download, ours included — "Snag - Save Image As" did exactly that,
    which is why files landed loose in ~/Downloads under their raw CDN names
-   instead of chrome-downloads/<post>/. Claim the name back for our own
+   instead of <post>/<file>. Claim the name back for our own
    downloads; anything we didn't start is left to whoever else cares. */
 const claimedNames = new Map(); // url -> intended relative path
 
@@ -963,7 +962,7 @@ function downloadFile(url, filename, historyId) {
   }
   const options = { url };
   if (filename) {
-    options.filename = safeRelPath(`${DOWNLOAD_SUBFOLDER}/${filename}`);
+    options.filename = safeRelPath(filename);
     claimFilename(url, options.filename);
   }
   dbg('[mdl] chrome.downloads.download →', options.filename, url.slice(0, 100));
@@ -973,7 +972,7 @@ function downloadFile(url, filename, historyId) {
       // Retry with safe fallback filename
       if (filename) {
         const ext = filename.match(/\.(\w+)$/)?.[1] || 'bin';
-        const safeName = `${DOWNLOAD_SUBFOLDER}/download_${Date.now()}.${ext}`;
+        const safeName = `download_${Date.now()}.${ext}`;
         claimFilename(url, safeName);
         chrome.downloads.download({ url, filename: safeName }, (retryId) => {
           if (chrome.runtime.lastError) {

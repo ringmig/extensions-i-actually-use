@@ -42,17 +42,14 @@ def send_message(msg):
 
 
 def get_downloads_dir():
-    """Get the default Downloads directory (chrome-downloads subfolder)."""
-    home = os.path.expanduser('~')
-    dl_dir = os.path.join(home, 'Downloads', 'chrome-downloads')
-    os.makedirs(dl_dir, exist_ok=True)
-    return dl_dir
+    """The user's Downloads folder, where Chrome's own downloads land too."""
+    return os.path.expanduser('~/Downloads')
 
 
 def story_dir(url):
     """Stories land in the Downloads folder itself; a whole reel gets its own
     folder there, named <account>_story_<when it was downloaded>."""
-    downloads = os.path.expanduser('~/Downloads')
+    downloads = get_downloads_dir()
     m = re.search(r'/stories/([^/?#]+)/(\d+)?', url)
     if not m or m.group(2):
         return downloads
@@ -79,7 +76,7 @@ def run_gallerydl(url, download_dir, retried=False):
         '--cookies-from-browser', 'chrome',
         '-D', download_dir,
         # Inside a reel's folder the date prefix keeps Finder in story order.
-        '-f', ('{username}_{media_id}.{extension}' if download_dir == os.path.expanduser('~/Downloads')
+        '-f', ('{username}_{media_id}.{extension}' if download_dir == get_downloads_dir()
                else '{date:%Y-%m-%d_%H.%M.%S}_{media_id}.{extension}'),
         # Instagram's DASH streams are VP9, which Quick Look and Finder
         # thumbnails cannot decode; the direct mp4 is H.264 with sound (720p).

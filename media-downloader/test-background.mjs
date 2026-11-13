@@ -1,5 +1,5 @@
 // Self-check for background.js download paths: every batch file must land in
-// its own post folder, never loose in chrome-downloads/.
+// its own post folder, never loose in Downloads.
 // Run: node test-background.mjs
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert';
@@ -57,8 +57,8 @@ const urls = extractDownloadUrls({
 }, POST);
 startBatchDownload(urls);
 assert.deepStrictEqual([...downloads], [
-  'chrome-downloads/tiktok_user_photo_7412345678/tikio_a.jpg',
-  'chrome-downloads/tiktok_user_photo_7412345678/tikio_b.jpg',
+  'tiktok_user_photo_7412345678/tikio_a.jpg',
+  'tiktok_user_photo_7412345678/tikio_b.jpg',
 ]);
 
 // A rival onDeterminingFilename extension must not rename our downloads:
@@ -67,7 +67,7 @@ const suggested = [];
 onDetermining({ url: 'https://tikio.com/a.jpg', finalUrl: 'https://tikio.com/a.jpg', byExtensionId: 'ourid' },
   (s) => suggested.push(s));
 assert.deepStrictEqual({ ...suggested[0] },
-  { filename: 'chrome-downloads/tiktok_user_photo_7412345678/tikio_a.jpg', conflictAction: 'uniquify' });
+  { filename: 'tiktok_user_photo_7412345678/tikio_a.jpg', conflictAction: 'uniquify' });
 
 // Someone else's download is left alone (no suggestion at all)
 suggested.length = 0;
@@ -83,9 +83,9 @@ onDetermining({ url: 'https://tikio.com/b.jpg', finalUrl: 'https://tikio.com/b.j
 assert.strictEqual(suggested.length, 0, 'must abstain on another extension\'s download');
 
 // Path segments Chrome chokes on are cleaned: trailing dot, empty segment
-assert.strictEqual(sandbox.safeRelPath('chrome-downloads/internal docs./a.jpg'),
-  'chrome-downloads/internal docs/a.jpg');
-assert.strictEqual(sandbox.safeRelPath('chrome-downloads//a.jpg'), 'chrome-downloads/a.jpg');
+assert.strictEqual(sandbox.safeRelPath('post/internal docs./a.jpg'),
+  'post/internal docs/a.jpg');
+assert.strictEqual(sandbox.safeRelPath('post//a.jpg'), 'post/a.jpg');
 
 console.log('ok');
 
