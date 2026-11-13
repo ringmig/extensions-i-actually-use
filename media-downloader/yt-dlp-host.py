@@ -49,15 +49,49 @@ def get_downloads_dir():
     return dl_dir
 
 
-def self_update():
-    """True if a newer yt-dlp release was installed into bin/."""
-    script = os.path.join(os.path.dirname(BIN_DIR), 'fetch-yt-dlp.sh')
+def self_update(tool='yt-dlp'):
+    """True if a newer release of tool was installed into bin/."""
+    script = os.path.join(os.path.dirname(BIN_DIR), f'fetch-{tool}.sh')
     try:
         updated = subprocess.run([script, BIN_DIR], timeout=300).returncode == 0
     except Exception:
         return False
-    log(f'yt-dlp update: {"installed" if updated else "nothing newer"}')
+    log(f'{tool} update: {"installed" if updated else "nothing newer"}')
     return updated
+
+
+def run_gallerydl(url, download_dir, retried=False):
+    """Instagram stories: yt-dlp's reels_media call gets HTTP 400 since 2026-10
+    (yt-dlp #17755), gallery-dl's GraphQL route still works."""
+    cmd = [
+        'gallery-dl',
+        '--cookies-from-browser', 'chrome',
+        '-D', download_dir,
+        '-f', '{username}_{media_id}.{extension}',
+        url,
+    ]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    except FileNotFoundError:
+        if not retried and self_update('gallery-dl'):
+            return run_gallerydl(url, download_dir, retried=True)
+        send_message({'status': 'error', 'error': 'gallery-dl not installed, run setup.command'})
+        return
+    except Exception as e:
+        send_message({'status': 'error', 'error': str(e)})
+        return
+
+    # stdout lists one path per file; "# " marks one that was already there.
+    files = [l.lstrip('# ').strip() for l in proc.stdout.splitlines() if l.strip()]
+    if proc.returncode == 0 and files:
+        send_message({'status': 'done', 'filename': os.path.basename(files[-1])})
+    elif not retried and self_update('gallery-dl'):
+        run_gallerydl(url, download_dir, retried=True)
+    else:
+        errors = [l for l in proc.stderr.splitlines() if '[error]' in l]
+        err = re.sub(r'^\[[^\]]+\]\[error\]\s*', '', errors[-1]) if errors else 'Download Failed'
+        log(f'gallery-dl exited with {proc.returncode}: {proc.stderr[-500:]}')
+        send_message({'status': 'error', 'error': err[:200]})
 
 
 def run_ytdlp(url, download_dir, retried=False):
@@ -184,7 +218,10 @@ def main():
 
         download_dir = msg.get('downloadDir', get_downloads_dir())
         send_message({'status': 'started'})
-        run_ytdlp(url, download_dir)
+        if re.search(r'instagram\.com/stories/', url):
+            run_gallerydl(url, download_dir)
+        else:
+            run_ytdlp(url, download_dir)
     except Exception as e:
         log(f'FATAL: {e}')
         import traceback

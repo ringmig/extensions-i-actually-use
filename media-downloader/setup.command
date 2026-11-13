@@ -15,6 +15,10 @@ echo "Checking yt-dlp..."
 ./fetch-yt-dlp.sh "$BIN_DIR" || true
 "$BIN_DIR/yt-dlp" --version
 
+echo "Checking gallery-dl (Instagram stories)..."
+./fetch-gallery-dl.sh "$BIN_DIR" || true
+"$BIN_DIR/gallery-dl" --version
+
 if [ ! -x "$BIN_DIR/ffmpeg" ]; then
   echo "Fetching ffmpeg..."
   [ "$(uname -m)" = "arm64" ] && ARCH=arm64 || ARCH=amd64
