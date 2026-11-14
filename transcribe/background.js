@@ -216,35 +216,25 @@ async function handleYouTube(tab, url) {
 
 // ===================================================================
 //  TIKTOK
-//  Strategy: 3 extraction methods tried in order
-//    1. Hydration element (fast, works on fresh page loads)
-//    2. TikTok web API (works after SPA navigation)
-//    3. Service worker HTML fetch (last resort)
+//  Strategy: 2 extraction methods tried in order
+//    1. In the page: hydration element, or the video's page HTML when stale
+//    2. Service worker HTML fetch (last resort)
 // ===================================================================
 
 async function handleTikTok(tab, url) {
-  // Method 1: Content script extracts from hydration element + fetches subtitle
-  // (must run from page origin to avoid CORS on TikTok CDN)
+  const videoId = ttExtractVideoId(url);
+
+  // Method 1: in the page — hydration element, or the video's own page HTML
+  // when the hydration is stale after SPA navigation. Runs from the page origin
+  // so the subtitle CDN answers without CORS trouble.
   const [{ result }] = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
+    args: [videoId],
     func: ttExtractAndFetch
   });
-
   if (result?.subtitleText) return ttParseResult(result);
 
-  // Method 2: TikTok web API — works after SPA navigation when hydration is stale
-  const videoId = ttExtractVideoId(url);
-  if (videoId) {
-    const [{ result: apiResult }] = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      world: 'MAIN',
-      args: [videoId],
-      func: ttFetchFromApi
-    });
-    if (apiResult?.subtitleText) return ttParseResult(apiResult);
-  }
-
-  // Method 3: Service worker fetches page HTML directly
+  // Method 2: service worker fetches page HTML (last resort)
   const fetched = await ttExtractFromFetch(tab.url);
   if (fetched?.subtitleText) return ttParseResult(fetched);
 
@@ -276,18 +266,29 @@ function ttParseResult({ subtitleText, format, title }) {
   return { title: title || '', text: lines.join('\n') };
 }
 
-// Method 1: Runs in content script context — extracts from hydration element
-// and fetches subtitle file from page origin (no CORS)
-async function ttExtractAndFetch() {
+// Method 1: Runs in content script context. The hydration element only
+// describes the page TikTok first served; after SPA navigation (clicking or
+// scrolling to another video) it still holds that first video, so check the id
+// and otherwise fetch the current video's page HTML from the page origin.
+// TikTok's /api/item/detail/ used to cover this but has answered with an empty
+// body since 2026 (needs signed params).
+async function ttExtractAndFetch(videoId) {
   try {
+    const parse = (json) => {
+      const vd = JSON.parse(json)?.['__DEFAULT_SCOPE__']?.['webapp.video-detail'];
+      return vd?.statusCode === 0 ? vd.itemInfo?.itemStruct : null;
+    };
+
     const el = document.getElementById('__UNIVERSAL_DATA_FOR_REHYDRATION__');
-    if (!el) return null;
+    let item = el ? parse(el.textContent) : null;
 
-    const data = JSON.parse(el.textContent);
-    const vd = data?.['__DEFAULT_SCOPE__']?.['webapp.video-detail'];
-    if (!vd || vd.statusCode !== 0) return null;
-
-    const item = vd.itemInfo?.itemStruct;
+    if (videoId && item?.id !== videoId) {
+      const res = await fetch(location.href, { credentials: 'include' });
+      const html = await res.text();
+      const m = html.match(/<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/);
+      item = m ? parse(m[1]) : null;
+      if (item?.id !== videoId) return null;
+    }
     if (!item?.video) return null;
 
     let subtitleUrl = null;
@@ -317,7 +318,6 @@ async function ttExtractAndFetch() {
 
     if (!subtitleUrl) return { title, subtitleText: null };
 
-    // Fetch from page context — no CORS issue
     const res = await fetch(subtitleUrl);
     const subtitleText = await res.text();
 
@@ -327,53 +327,7 @@ async function ttExtractAndFetch() {
   }
 }
 
-// Method 2: Runs in MAIN world — calls TikTok's internal web API
-// Works after SPA navigation when hydration element has stale data
-async function ttFetchFromApi(videoId) {
-  try {
-    const apiUrl = 'https://www.tiktok.com/api/item/detail/?itemId=' + videoId;
-    const res = await fetch(apiUrl);
-    if (!res.ok) return null;
-
-    const json = await res.json();
-    const item = json?.itemInfo?.itemStruct;
-    if (!item?.video) return null;
-
-    let subtitleUrl = null;
-    let format = 'webvtt';
-    const title = item.desc || '';
-
-    const subs = item.video.subtitleInfos;
-    if (subs?.length) {
-      const s = subs.find(x => x.LanguageCodeName?.startsWith('eng')) || subs[0];
-      subtitleUrl = s.Url || s.url;
-      format = (s.Format || s.format || 'webvtt').toLowerCase();
-    }
-
-    if (!subtitleUrl) {
-      const claInfo = item.video.claInfo || item.video.cla_info;
-      const caps = claInfo?.captionInfos || claInfo?.caption_infos;
-      if (caps?.length) {
-        const c = caps.find(x =>
-          x.languageCode === 'en' || x.languageCode?.startsWith('eng')
-        ) || caps[0];
-        subtitleUrl = c.url || c.urlList?.[0];
-        format = (c.captionFormat || 'webvtt').toLowerCase();
-      }
-    }
-
-    if (!subtitleUrl) return null;
-
-    const subRes = await fetch(subtitleUrl);
-    const subtitleText = await subRes.text();
-
-    return { subtitleText, format, title };
-  } catch {
-    return null;
-  }
-}
-
-// Method 3: Service worker fetches page HTML, extracts subtitle URL
+// Method 2: Service worker fetches page HTML, extracts subtitle URL
 // Last resort — may fail due to CORS on subtitle CDN or bot detection on page
 async function ttExtractFromFetch(pageUrl) {
   try {
