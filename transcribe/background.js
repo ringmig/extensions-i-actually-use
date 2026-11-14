@@ -282,8 +282,22 @@ async function ttExtractAndFetch(videoId) {
     const el = document.getElementById('__UNIVERSAL_DATA_FOR_REHYDRATION__');
     let item = el ? parse(el.textContent) : null;
 
+    // Feed pages (/foryou, /following) keep their URL while you scroll: take the
+    // video whose card covers the middle of the viewport.
+    let pageUrl = location.href;
+    if (!videoId) {
+      const mid = innerHeight / 2;
+      const card = [...document.querySelectorAll('article')].find(a => {
+        const r = a.getBoundingClientRect();
+        return r.top <= mid && r.bottom >= mid;
+      });
+      videoId = card?.querySelector('[id^="xgwrapper-"]')?.id.split('-').pop() || null;
+      // TikTok serves /@<anything>/video/<id> for the right video
+      if (videoId) pageUrl = '/@_/video/' + videoId;
+    }
+
     if (videoId && item?.id !== videoId) {
-      const res = await fetch(location.href, { credentials: 'include' });
+      const res = await fetch(pageUrl, { credentials: 'include' });
       const html = await res.text();
       const m = html.match(/<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/);
       item = m ? parse(m[1]) : null;
