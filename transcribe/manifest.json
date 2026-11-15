@@ -39,5 +39,10 @@
     ],
     "js": ["toast.js"],
     "run_at": "document_idle"
+  }, {
+    "matches": ["https://www.youtube.com/*", "https://youtube.com/*"],
+    "js": ["yt-menu.js"],
+    "run_at": "document_start",
+    "world": "MAIN"
   }]
 }
