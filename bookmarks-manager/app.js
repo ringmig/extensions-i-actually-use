@@ -1150,6 +1150,8 @@
   });
 
   document.addEventListener('keydown', async (e) => {
+    // The extensions view (extensions.js) has its own keys
+    if (document.getElementById('app').classList.contains('ext-mode')) return;
     if (e.key === 'Escape') {
       hideContextMenu();
       hideEditDialog();

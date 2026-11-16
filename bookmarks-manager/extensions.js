@@ -1,9 +1,15 @@
+// Extensions view: a second view of the new tab page, next to the bookmarks.
+// app.js owns the bookmarks; this module owns everything inside #ext-view and
+// only touches #app to switch between the two.
 import { capture, matches, changes, loadProfiles, saveProfiles } from './profiles.js';
 
 const $ = (s) => document.querySelector(s);
-const content = $('#content');
-const menu = $('#context-menu');
-const nameDialog = $('#name-dialog');
+const app = $('#app');
+const view = $('#ext-view');
+const content = $('#ext-content');
+const menu = $('#ext-menu');
+const nameDialog = $('#ext-name-dialog');
+const search = $('#ext-search');
 
 const SELF = chrome.runtime.id;
 const store = {
@@ -13,12 +19,37 @@ const store = {
 
 let exts = [];
 let profiles = [];
-let view = store.get('em-view', 'grid');
+let layout = store.get('em-view', 'grid');
 let filter = store.get('em-filter', 'all');
 let query = '';
 let firstRender = true;
+let loaded = false;
 
 const toggleable = () => exts.filter((e) => e.mayDisable);
+
+// ── Switching views ─────────────────────────
+
+async function show(on) {
+  app.classList.toggle('ext-mode', on);
+  view.hidden = !on;
+  for (const b of document.querySelectorAll('.ext-btn')) {
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', on);
+  }
+  // A hash so a reload stays here; a fresh new tab still opens on bookmarks
+  history.replaceState(null, '', on ? '#extensions' : location.pathname);
+  if (on) {
+    if (!loaded) { profiles = await loadProfiles(); await load(); loaded = true; }
+    search.focus();
+  } else {
+    // The bookmark grid sized its rows while hidden; let it measure again
+    dispatchEvent(new Event('resize'));
+  }
+}
+
+for (const b of document.querySelectorAll('.ext-btn')) {
+  b.addEventListener('click', () => show(!app.classList.contains('ext-mode')));
+}
 
 async function load() {
   const all = await chrome.management.getAll();
@@ -59,9 +90,11 @@ function text(cls, value) {
   return el;
 }
 
+const isUnpacked = (e) => e.installType === 'development';
+
 function item(e) {
   const el = document.createElement('button');
-  el.className = `${view === 'grid' ? 'card' : 'list-item'} ${e.enabled ? 'on' : 'off'}`;
+  el.className = `${layout === 'grid' ? 'card' : 'list-item'} ${e.enabled ? 'on' : 'off'}`;
   el.dataset.id = e.id;
   el.setAttribute('role', 'switch');
   el.setAttribute('aria-checked', e.enabled);
@@ -77,15 +110,17 @@ function item(e) {
   sw.setAttribute('aria-hidden', 'true');
 
   el.append(iconEl(e), text('name', e.name));
-  if (view === 'list') el.append(text('desc', e.description || ''));
-  el.append(text('meta', `v${e.version}`), sw);
+  if (layout === 'list') el.append(text('desc', e.description || ''));
+  const meta = text('meta', `v${e.version}`);
+  if (isUnpacked(e)) meta.append(text('badge', 'Unpacked'));
+  el.append(meta, sw);
   return el;
 }
 
 function emptyState(title, line) {
   const wrap = document.createElement('div');
-  wrap.className = 'empty';
-  wrap.innerHTML = `<div class="empty-disc"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg></div>`;
+  wrap.className = 'ext-empty';
+  wrap.innerHTML = `<div class="ext-empty-disc"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg></div>`;
   wrap.append(Object.assign(document.createElement('h2'), { textContent: title }));
   if (line) wrap.append(Object.assign(document.createElement('p'), { textContent: line }));
   return wrap;
@@ -101,7 +136,7 @@ function render() {
   const focusedId = document.activeElement?.dataset?.id;
 
   const box = document.createElement('div');
-  box.className = view === 'grid' ? 'grid' : 'list';
+  box.className = layout === 'grid' ? 'grid' : 'list';
   if (!firstRender) box.classList.add('no-anim');
   firstRender = false;
   box.append(...shown.map(item));
@@ -114,20 +149,20 @@ function render() {
 
   if (focusedId) content.querySelector(`[data-id="${CSS.escape(focusedId)}"]`)?.focus();
 
-  for (const b of document.querySelectorAll('#filter button')) {
+  for (const b of document.querySelectorAll('#ext-filter button')) {
     const f = b.dataset.filter;
     b.classList.toggle('active', f === filter);
     b.querySelector('.n').textContent =
       f === 'all' ? exts.length : exts.filter((e) => e.enabled === (f === 'on')).length;
   }
-  $('#grid-view').classList.toggle('active', view === 'grid');
-  $('#list-view').classList.toggle('active', view === 'list');
+  $('#ext-grid').classList.toggle('active', layout === 'grid');
+  $('#ext-list').classList.toggle('active', layout === 'list');
 
   renderProfiles();
 }
 
 function renderProfiles() {
-  const nav = $('#profiles');
+  const nav = $('#ext-profiles');
   const chips = profiles.map((p) => {
     const b = document.createElement('button');
     b.className = 'chip';
@@ -141,7 +176,7 @@ function renderProfiles() {
   });
   const add = document.createElement('button');
   add.className = 'chip add';
-  add.id = 'add-profile';
+  add.id = 'ext-add-profile';
   add.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 1v10M1 6h10"/></svg>`;
   add.append(profiles.length ? 'Save current' : 'Save current as profile');
   nav.replaceChildren(...chips, add);
@@ -149,6 +184,7 @@ function renderProfiles() {
 
 // ── Actions ─────────────────────────────────
 
+// The page's own toast element, shared with the bookmarks view
 let toastTimer;
 function toast(msg) {
   const t = $('#toast');
@@ -168,6 +204,18 @@ async function toggle(id) {
     toast(`Could not change ${e.name}: ${err.message}`);
   }
   // The onEnabled/onDisabled listeners reload the list
+}
+
+// Turning an unpacked extension off and on makes Chrome read it from disk again,
+// the same as the reload arrow in chrome://extensions.
+async function reload(e) {
+  try {
+    await chrome.management.setEnabled(e.id, false);
+    await chrome.management.setEnabled(e.id, true);
+    toast(`${e.name} reloaded`);
+  } catch (err) {
+    toast(`Could not reload ${e.name}: ${err.message}`);
+  }
 }
 
 async function applyProfile(p) {
@@ -210,6 +258,7 @@ function openMenu(x, y, entries) {
 function extensionMenu(e) {
   const entries = [];
   if (e.mayDisable) entries.push({ label: e.enabled ? 'Turn off' : 'Turn on', run: () => toggle(e.id) });
+  if (isUnpacked(e) && e.enabled) entries.push({ label: 'Reload from disk', run: () => reload(e) });
   entries.push({ label: 'Turn off all others', run: () => soloExtension(e) });
   if (e.optionsUrl) entries.push({ label: 'Options', run: () => chrome.tabs.create({ url: e.optionsUrl }) });
   entries.push({ label: 'Details', run: () => chrome.tabs.create({ url: `chrome://extensions/?id=${e.id}` }) });
@@ -274,9 +323,9 @@ content.addEventListener('contextmenu', (ev) => {
   openMenu(ev.clientX || r.left + 12, ev.clientY || r.top + 12, extensionMenu(e));
 });
 
-$('#profiles').addEventListener('click', (ev) => {
-  if (ev.target.closest('#add-profile')) {
-    $('#profile-name').value = '';
+$('#ext-profiles').addEventListener('click', (ev) => {
+  if (ev.target.closest('#ext-add-profile')) {
+    $('#ext-profile-name').value = '';
     nameDialog.showModal();
     return;
   }
@@ -284,7 +333,7 @@ $('#profiles').addEventListener('click', (ev) => {
   if (chip) applyProfile(profiles.find((p) => p.id === chip.dataset.profile));
 });
 
-$('#profiles').addEventListener('contextmenu', (ev) => {
+$('#ext-profiles').addEventListener('contextmenu', (ev) => {
   const chip = ev.target.closest('[data-profile]');
   if (!chip) return;
   ev.preventDefault();
@@ -293,11 +342,11 @@ $('#profiles').addEventListener('contextmenu', (ev) => {
     profileMenu(profiles.find((p) => p.id === chip.dataset.profile)));
 });
 
-$('#name-cancel').onclick = () => nameDialog.close();
+$('#ext-name-cancel').onclick = () => nameDialog.close();
 nameDialog.addEventListener('close', async () => {
   if (nameDialog.returnValue !== 'save') return;
   nameDialog.returnValue = '';
-  const name = $('#profile-name').value.trim();
+  const name = $('#ext-profile-name').value.trim();
   if (!name) return;
   profiles.push({ id: crypto.randomUUID(), name, ...capture(toggleable()) });
   await saveProfiles(profiles);
@@ -305,9 +354,12 @@ nameDialog.addEventListener('close', async () => {
   toast(`Saved ${name}`);
 });
 
-$('#search').addEventListener('input', (ev) => { query = ev.target.value; render(); });
+// Developer mode and Load unpacked are only reachable from Chrome's own page
+$('#ext-dev').addEventListener('click', () => chrome.tabs.create({ url: 'chrome://extensions' }));
 
-$('#filter').addEventListener('click', (ev) => {
+search.addEventListener('input', (ev) => { query = ev.target.value; render(); });
+
+$('#ext-filter').addEventListener('click', (ev) => {
   const b = ev.target.closest('[data-filter]');
   if (!b) return;
   filter = b.dataset.filter;
@@ -315,20 +367,19 @@ $('#filter').addEventListener('click', (ev) => {
   render();
 });
 
-for (const [id, v] of [['#grid-view', 'grid'], ['#list-view', 'list']]) {
-  $(id).onclick = () => { view = v; store.set('em-view', v); render(); };
+for (const [id, v] of [['#ext-grid', 'grid'], ['#ext-list', 'list']]) {
+  $(id).onclick = () => { layout = v; store.set('em-view', v); render(); };
 }
 
 document.addEventListener('keydown', (ev) => {
+  if (view.hidden) return;
   const typing = ev.target.matches('input');
-  if (ev.key === '/' && !typing) { ev.preventDefault(); $('#search').focus(); }
-  if (ev.key === 'Escape' && typing && query) { ev.target.value = query = ''; render(); }
+  if (ev.key === '/' && !typing) { ev.preventDefault(); search.focus(); }
+  if (ev.key === 'Escape' && ev.target === search && query) { search.value = query = ''; render(); }
 });
 
 for (const evt of ['onEnabled', 'onDisabled', 'onInstalled', 'onUninstalled']) {
-  chrome.management[evt].addListener(load);
+  chrome.management[evt].addListener(() => { if (loaded) load(); });
 }
 
-profiles = await loadProfiles();
-await load();
-$('#search').focus();
+if (location.hash === '#extensions') show(true);

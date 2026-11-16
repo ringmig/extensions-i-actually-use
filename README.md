@@ -40,13 +40,9 @@ Hides the mouse cursor after 3 seconds of inactivity.
 ### <img src="bookmarks-manager/icons/icon128.png" width="28" height="28" align="top" alt=""> Bookmarks Manager
 **[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/bookmarks-manager.zip)**
 
-Replaces the new tab page with a minimal dark bookmarks manager that shows site previews.
-
-### <img src="extensions-manager/icons/icon128.png" width="28" height="28" align="top" alt=""> Extensions Manager
-**[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/extensions-manager.zip)**
-
-Click the toolbar icon for a minimal dark page of all your extensions. Click one to switch it on or
-off, and save the current set as a profile you can switch back to with one click.
+Replaces the new tab page with a minimal dark bookmarks manager that shows site previews. The
+puzzle button switches to a view of your extensions: click one to turn it on or off, and save
+the current set as a profile to switch back to with one click.
 
 ### <img src="four-panes/icons/icon128.png" width="28" height="28" align="top" alt=""> Four Panes
 **[Download](https://github.com/ringmig/extensions-i-actually-use/releases/latest/download/four-panes.zip)**
