@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Extensions</title>
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="stylesheet" href="manager.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="search-bar">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="6.5" cy="6.5" r="5.5"/>
+          <line x1="10.5" y1="10.5" x2="15" y2="15"/>
+        </svg>
+        <input type="text" id="search" placeholder="Search extensions..." autocomplete="off" spellcheck="false">
+      </div>
+      <div class="view-toggle filter" id="filter">
+        <button data-filter="all">All <span class="n"></span></button>
+        <button data-filter="on">On <span class="n"></span></button>
+        <button data-filter="off">Off <span class="n"></span></button>
+      </div>
+      <div class="view-toggle">
+        <button id="grid-view" title="Grid view" aria-label="Grid view">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+            <rect x="0" y="0" width="8" height="8" rx="2"/>
+            <rect x="10" y="0" width="8" height="8" rx="2"/>
+            <rect x="0" y="10" width="8" height="8" rx="2"/>
+            <rect x="10" y="10" width="8" height="8" rx="2"/>
+          </svg>
+        </button>
+        <button id="list-view" title="List view" aria-label="List view">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+            <rect x="0" y="2" width="18" height="2" rx="1"/>
+            <rect x="0" y="8" width="18" height="2" rx="1"/>
+            <rect x="0" y="14" width="18" height="2" rx="1"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <nav id="profiles" aria-label="Profiles"></nav>
+    <main id="content"></main>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+  <div id="context-menu" class="context-menu" role="menu" popover></div>
+
+  <dialog id="name-dialog" class="dialog">
+    <form method="dialog" id="name-form">
+      <h3>Save profile</h3>
+      <p class="dialog-note">Remembers which extensions are on and off right now.</p>
+      <label>
+        Name
+        <input type="text" id="profile-name" spellcheck="false" required maxlength="40">
+      </label>
+      <div class="dialog-actions">
+        <button type="button" id="name-cancel">Cancel</button>
+        <button type="submit" value="save">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="manager.js"></script>
+</body>
+</html>
