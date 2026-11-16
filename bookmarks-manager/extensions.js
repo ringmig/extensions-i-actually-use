@@ -40,7 +40,6 @@ async function show(on) {
   history.replaceState(null, '', on ? '#extensions' : location.pathname);
   if (on) {
     if (!loaded) { profiles = await loadProfiles(); await load(); loaded = true; }
-    search.focus();
   } else {
     // The bookmark grid sized its rows while hidden; let it measure again
     dispatchEvent(new Event('resize'));
